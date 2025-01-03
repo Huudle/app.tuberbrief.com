@@ -1,36 +1,39 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FLOW FUSION
 
-## Getting Started
+## YouTube Channel Monitoring & Summarization Service
 
-First, run the development server:
+This web application monitors YouTube channels, fetches new video metadata and captions, generates summaries using AI, and sends the summaries to users via email.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Features
+- **Channel Monitoring**: Users can add YouTube channels to monitor.
+- **Video Detection**: Periodically checks for new videos on the subscribed channels.
+- **AI Summarization**: Generates summaries for new videos by fetching captions or subtitles.
+- **Email Notifications**: Sends video summaries to users via email.
+- **Scalable Infrastructure**: Supports high user volumes with parallel processing, distributed workers, and auto-scaling.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Architecture Overview
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The application follows an event-driven, distributed architecture to ensure efficiency and scalability.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Components:
+- **Frontend**:
+  - User authentication and management.
+  - Channel subscription and preferences.
+  - Dashboard for user activity and settings.
 
-## Learn More
+- **Backend**:
+  - Periodic job scheduler (Cron jobs or serverless functions) to monitor channels.
+  - Message queues for task distribution.
+  - Worker nodes for parallel processing of video checks, caption fetching, and summarization.
+  - Summarization service using AI models.
+  - Email service for sending personalized summaries.
 
-To learn more about Next.js, take a look at the following resources:
+- **Database**:
+  - PostgreSQL for storing user data, channel subscriptions, and video metadata.
+  - Redis or Memcached for caching frequently checked channels and metadata.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **External Services**:
+  - YouTube Data API for fetching channel and video metadata.
+  - YouTube Captions API or scraping for fetching captions/subtitles.
+  - AI Summarization Service.
+  - Email service.
