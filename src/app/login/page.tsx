@@ -12,65 +12,68 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(
-    searchParams.get("message")
-  );
+  const [message] = useState<string | null>(searchParams.get("message"));
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => {
-        setMessage(null);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.id]: e.target.value,
-    }));
-    setError(null);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("Login attempt started:", { email: formData.email });
     setError(null);
     setLoading(true);
 
-    if (!formData.email || !formData.password) {
-      setError("All fields are required");
-      setLoading(false);
-      return;
-    }
-
     try {
+      console.log("Attempting to sign in with Supabase...");
       const { data, error: signInError } =
         await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
         });
 
-      if (signInError) throw signInError;
+      if (signInError) {
+        console.error("Supabase signin error:", signInError);
+        throw signInError;
+      }
 
-      if (data.user) {
-        router.push("/dashboard");
+      if (data?.session) {
+        // Call the auth callback endpoint to set the cookie
+        const response = await fetch("/api/auth/callback", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            event: "SIGNED_IN",
+            session: data.session,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to set session cookie");
+        }
+
+        console.log("Redirecting to dashboard...");
+        window.location.href = "/dashboard";
+      } else {
+        console.error("No session data received from Supabase");
+        throw new Error("No session returned from login");
       }
     } catch (err) {
+      console.error("Login error:", {
+        error: err,
+        message: err instanceof Error ? err.message : "Unknown error",
+        stack: err instanceof Error ? err.stack : undefined,
+      });
       setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
       setLoading(false);
     }
   };
@@ -103,7 +106,9 @@ function LoginForm() {
                 type="email"
                 placeholder="Enter your email"
                 value={formData.email}
-                onChange={handleChange}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
               />
             </div>
             <div className="space-y-2">
@@ -113,7 +118,9 @@ function LoginForm() {
                 type="password"
                 placeholder="Enter your password"
                 value={formData.password}
-                onChange={handleChange}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
               />
               <div className="text-right">
                 <a
