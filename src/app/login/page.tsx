@@ -13,9 +13,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -29,7 +29,6 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    // Clear message after 5 seconds
     if (message) {
       const timer = setTimeout(() => {
         setMessage(null);
@@ -51,7 +50,6 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    // Basic validation
     if (!formData.email || !formData.password) {
       setError("All fields are required");
       setLoading(false);
@@ -68,7 +66,6 @@ export default function LoginPage() {
       if (signInError) throw signInError;
 
       if (data.user) {
-        // Redirect to dashboard or home page after successful login
         router.push("/dashboard");
       }
     } catch (err) {
@@ -142,5 +139,13 @@ export default function LoginPage() {
         </form>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
