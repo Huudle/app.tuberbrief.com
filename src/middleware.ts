@@ -3,7 +3,6 @@ import type { NextRequest } from "next/server";
 import { supabase } from "@/lib/supabase";
 
 export async function middleware(request: NextRequest) {
-  console.log("🚀 Middleware:", request.nextUrl.pathname);
 
   try {
     // Get the session cookie
