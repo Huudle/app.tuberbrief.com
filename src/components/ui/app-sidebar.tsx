@@ -1,30 +1,31 @@
-"use client"
+"use client";
 
-import * as React from "react"
+import * as React from "react";
 import {
   AudioWaveform,
   BookOpen,
-  Bot,
+  Brain,
   Command,
-  Frame,
+  DollarSign,
   GalleryVerticalEnd,
-  Map,
-  PieChart,
+  Hammer,
+  Heart,
+  Music,
   Settings2,
-  SquareTerminal,
-} from "lucide-react"
+  Youtube,
+} from "lucide-react";
 
-import { NavMain } from "@/components/ui/nav-main"
-import { NavProjects } from "@/components/ui/nav-projects"
-import { NavUser } from "@/components/ui/nav-user"
-import { TeamSwitcher } from "@/components/ui/team-switcher"
+import { NavMain } from "@/components/ui/nav-main";
+import { NavProjects } from "@/components/ui/nav-projects";
+import { NavUser } from "@/components/ui/nav-user";
+import { TeamSwitcher } from "@/components/ui/team-switcher";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarRail,
-} from "@/components/ui/sidebar"
+} from "@/components/ui/sidebar";
 
 // This is sample data.
 const data = {
@@ -52,40 +53,17 @@ const data = {
   ],
   navMain: [
     {
-      title: "Playground",
-      url: "#",
-      icon: SquareTerminal,
+      title: "YouTube Channels",
+      url: "/dashboard/channels",
+      icon: Youtube,
       isActive: true,
       items: [
         {
-          title: "History",
-          url: "#",
+          title: "Edit Channels",
+          url: "/dashboard/channels/edit",
         },
         {
-          title: "Starred",
-          url: "#",
-        },
-        {
-          title: "Settings",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Models",
-      url: "#",
-      icon: Bot,
-      items: [
-        {
-          title: "Genesis",
-          url: "#",
-        },
-        {
-          title: "Explorer",
-          url: "#",
-        },
-        {
-          title: "Quantum",
+          title: "Add Channel",
           url: "#",
         },
       ],
@@ -139,22 +117,32 @@ const data = {
   ],
   projects: [
     {
-      name: "Design Engineering",
+      name: "AI",
       url: "#",
-      icon: Frame,
+      icon: Brain,
     },
     {
-      name: "Sales & Marketing",
+      name: "Health",
       url: "#",
-      icon: PieChart,
+      icon: Heart,
     },
     {
-      name: "Travel",
+      name: "Personal Finance",
       url: "#",
-      icon: Map,
+      icon: DollarSign,
+    },
+    {
+      name: "Entertainment",
+      url: "#",
+      icon: Music,
+    },
+    {
+      name: "How-Tos",
+      url: "#",
+      icon: Hammer,
     },
   ],
-}
+};
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
@@ -171,5 +159,5 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
