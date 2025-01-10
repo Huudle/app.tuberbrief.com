@@ -1,9 +1,20 @@
+import Image from "next/image";
+
 export default function Home() {
   return (
     <div className="grid grid-rows-[20px_1fr_20px] min-h-screen p-8 pb-20 gap-16 sm:p-20">
       <main className="flex flex-col gap-8 row-start-2 items-center justify-center">
         <div className="text-center max-w-3xl">
-          <h1 className="text-6xl font-bold mb-6">FLOW FUSION</h1>
+          <div className="flex justify-center mb-8">
+            <Image
+              src="/logo-001.png"
+              alt="Flow Fusion Logo"
+              width={512}
+              height={512}
+              priority
+              className="dark:invert"
+            />
+          </div>
           <p className="text-xl text-gray-600 dark:text-gray-300">
             Your intelligent YouTube companion that monitors channels, generates
             AI-powered video summaries, and delivers insights straight to your

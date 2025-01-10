@@ -1,6 +1,9 @@
 import { AppLayout } from "@/components/ui/app-layout";
+import { redirect } from "next/navigation";
 
 export default function Page() {
+  redirect("/dashboard/channels");
+
   return (
     <AppLayout
       breadcrumbs={[

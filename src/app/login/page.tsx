@@ -62,7 +62,7 @@ function LoginForm() {
         }
 
         console.log("Redirecting to dashboard...");
-        window.location.href = "/dashboard";
+        window.location.href = "/dashboard/channels";
       } else {
         console.error("No session data received from Supabase");
         throw new Error("No session returned from login");
