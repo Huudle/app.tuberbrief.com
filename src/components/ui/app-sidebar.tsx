@@ -18,8 +18,8 @@ import {
 import { NavMain } from "@/components/ui/nav-main";
 /* import { NavProjects } from "@/components/ui/nav-projects";
  */ import { NavUser } from "@/components/ui/nav-user";
-import { TeamSwitcher } from "@/components/ui/team-switcher";
-import {
+/* import { TeamSwitcher } from "@/components/ui/team-switcher";
+ */import {
   Sidebar,
   SidebarContent,
   SidebarFooter,

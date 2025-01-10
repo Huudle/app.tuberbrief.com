@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PLAN_LIMITS, UserPlan } from "@/lib/constants";
-import { Badge } from "@/components/ui/badge";
 
 export default function ChannelsPage() {
   const [channels, setChannels] = useState<ChannelListItem[]>([]);
