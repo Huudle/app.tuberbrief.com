@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import { AppLayout } from "@/components/ui/app-layout";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
+import { useProfile } from "@/hooks/use-profile";
 
 const formSchema = z.object({
   first_name: z.string().min(2, "First name must be at least 2 characters"),
@@ -30,8 +32,8 @@ const formSchema = z.object({
 type ProfileFormValues = z.infer<typeof formSchema>;
 
 export default function ProfilePage() {
+  const { profile, isLoading: isLoadingProfile, refreshProfile } = useProfile();
   const [isLoading, setIsLoading] = React.useState(false);
-  const [isFormReady, setIsFormReady] = React.useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
@@ -44,40 +46,16 @@ export default function ProfilePage() {
     },
   });
 
-  // Load initial data
+  // Use profile data to populate form
   React.useEffect(() => {
-    async function loadProfile() {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("first_name, last_name")
-          .eq("id", user?.id)
-          .single();
-
-        if (profile) {
-          form.reset({
-            first_name: profile.first_name || "",
-            last_name: profile.last_name || "",
-            email: user?.email || "",
-          });
-        }
-      } catch {
-        toast({
-          title: "Error",
-          description: "Failed to load profile data",
-          variant: "destructive",
-        });
-      } finally {
-        setIsFormReady(true);
-      }
+    if (profile) {
+      form.reset({
+        first_name: profile.first_name || "",
+        last_name: profile.last_name || "",
+        email: profile.email || "",
+      });
     }
-
-    loadProfile();
-  }, [form, toast]);
+  }, [profile, form]);
 
   async function onSubmit(data: ProfileFormValues) {
     setIsLoading(true);
@@ -102,6 +80,7 @@ export default function ProfilePage() {
         description: "Your profile has been updated successfully.",
       });
 
+      await refreshProfile(); // Refresh the shared profile data
       router.refresh();
     } catch {
       toast({
@@ -112,6 +91,51 @@ export default function ProfilePage() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  if (isLoadingProfile) {
+    return (
+      <AppLayout
+        breadcrumbs={[
+          { label: "Settings", href: "/dashboard/settings" },
+          { label: "Profile", active: true },
+        ]}
+      >
+        <div className="w-full max-w-5xl space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold">Profile Settings</h1>
+            <p className="text-sm text-muted-foreground">
+              Manage your personal information
+            </p>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Personal Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-12" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-20" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="flex justify-end">
+                  <Skeleton className="h-10 w-28" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    );
   }
 
   return (
@@ -134,65 +158,57 @@ export default function ProfilePage() {
             <CardTitle>Personal Information</CardTitle>
           </CardHeader>
           <CardContent>
-            {!isFormReady ? (
-              <div className="space-y-6">
-                <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
-                <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
-                <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
-              </div>
-            ) : (
-              <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-6"
-                >
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input {...field} disabled />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="first_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>First Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="last_name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Last Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="flex justify-end">
-                    <Button type="submit" disabled={isLoading}>
-                      {isLoading ? "Saving..." : "Save changes"}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            )}
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-6"
+              >
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input {...field} disabled />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="first_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="last_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={isLoading}>
+                    {isLoading ? "Saving..." : "Save changes"}
+                  </Button>
+                </div>
+              </form>
+            </Form>
           </CardContent>
         </Card>
       </div>

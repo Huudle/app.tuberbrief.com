@@ -1,21 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/env.mjs";
-import { getDefaultAvatar } from "@/lib/utils";
-import { UserPlan } from "@/lib/constants";
 
 export const supabase = createClient(
   env.NEXT_PUBLIC_SUPABASE_URL,
   env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
-
-export interface Profile {
-  id: string;
-  updated_at?: string;
-  first_name?: string | null;
-  last_name?: string | null;
-  avatar_url?: string | null;
-  plan: UserPlan;
-}
 
 export interface YouTubeChannel {
   id: string;
@@ -30,6 +19,7 @@ export interface ChannelListItem {
   id: string;
   name: string;
   url: string;
+  customUrl: string;
   subscriberCount: number;
   lastVideoDate: string;
   thumbnail: string;
@@ -48,6 +38,7 @@ interface ChannelQueryResult {
     subscriber_count: number;
     last_video_id: string;
     last_video_date: string;
+    custom_url: string;
   };
 }
 
@@ -60,6 +51,7 @@ export async function addYouTubeChannel(
     subscriberCount: number;
     lastVideoId: string;
     lastVideoDate: string;
+    customUrl: string;
   }
 ): Promise<YouTubeChannel> {
   console.log("🚀 Starting addYouTubeChannel");
@@ -102,6 +94,7 @@ export async function addYouTubeChannel(
         subscriber_count: channelData.subscriberCount,
         last_video_id: channelData.lastVideoId,
         last_video_date: channelData.lastVideoDate,
+        custom_url: channelData.customUrl,
       });
 
     if (channelError) {
@@ -149,7 +142,10 @@ export async function addYouTubeChannel(
       .single();
 
     if (fetchError) {
-      console.error("❌ Error fetching channel:", fetchError);
+      console.error(
+        "❌ Error fetching channel:",
+        (fetchError as Error).message
+      );
       console.error("Details:", {
         code: fetchError.code,
         message: fetchError.message,
@@ -179,59 +175,9 @@ export async function addYouTubeChannel(
   }
 }
 
-export async function getCurrentUserAndProfile(): Promise<{
-  id: string;
-  email: string;
-  profile: Profile | null;
-} | null> {
-  try {
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabase.auth.getSession();
-    if (sessionError || !session) return null;
-
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", session.user.id)
-      .single();
-
-    if (!profile?.avatar_url) {
-      profile.avatar_url = getDefaultAvatar({
-        email: session.user.email!,
-      });
-    }
-
-    return {
-      id: session.user.id,
-      email: session.user.email!,
-      profile: profileError ? null : profile,
-    };
-  } catch (error) {
-    console.error("Error getting current user:", error);
-    return null;
-  }
-}
-
-export async function getUserPlan(
-  userId: string
-): Promise<"free" | "basic" | "pro"> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("plan")
-    .eq("id", userId)
-    .single();
-
-  if (error || !data) return "free";
-  return data.plan as "free" | "basic" | "pro";
-}
-
 export async function getProfileChannels(
   profileId: string
 ): Promise<ChannelListItem[]> {
-  console.log("📡 Fetching channels for profile:", profileId);
-
   try {
     const { data, error } = await supabase
       .from("profile_youtube_channels")
@@ -245,7 +191,8 @@ export async function getProfileChannels(
           thumbnail,
           subscriber_count,
           last_video_id,
-          last_video_date
+          last_video_date,
+          custom_url
         )
       `
       )
@@ -262,8 +209,6 @@ export async function getProfileChannels(
       return [];
     }
 
-    console.log("✅ Fetched channels:", data);
-
     // First cast to unknown, then to our expected type
     const typedData = data as unknown as ChannelQueryResult[];
 
@@ -277,6 +222,7 @@ export async function getProfileChannels(
       latestVideoId: item.youtube_channel.last_video_id,
       avatar: item.youtube_channel.thumbnail,
       createdAt: item.created_at,
+      customUrl: item.youtube_channel.custom_url,
     }));
   } catch (error) {
     console.error("💥 Error in getProfileChannels:", error);

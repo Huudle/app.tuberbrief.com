@@ -8,7 +8,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { getRelativeTime } from "@/lib/utils";
 import {
-  getCurrentUserAndProfile,
   getProfileChannels,
   deleteProfileChannel,
   ChannelListItem,
@@ -27,27 +26,22 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PLAN_LIMITS, UserPlan } from "@/lib/constants";
+import { PLAN_LIMITS } from "@/lib/constants";
+import { useProfile } from "@/hooks/use-profile";
 
 export default function ChannelsPage() {
+  const { profile, isLoading: isLoadingProfile } = useProfile();
   const [channels, setChannels] = useState<ChannelListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [userPlan, setUserPlan] = useState<UserPlan>("free");
 
   useEffect(() => {
     async function loadChannels() {
+      if (!profile) return;
+
       try {
-        const user = await getCurrentUserAndProfile();
-        if (!user) {
-          setError("You must be logged in to view channels");
-          return;
-        }
-
-        setUserPlan(user.profile?.plan || "free");
-
-        const channelsData = await getProfileChannels(user.id);
+        const channelsData = await getProfileChannels(profile.id);
         setChannels(channelsData);
       } catch (err) {
         console.error("Error loading channels:", err);
@@ -61,20 +55,17 @@ export default function ChannelsPage() {
       }
     }
 
-    loadChannels();
-  }, []);
+    if (!isLoadingProfile) {
+      loadChannels();
+    }
+  }, [profile, isLoadingProfile]);
 
   const handleDelete = async (channelId: string) => {
+    if (!profile) return;
+
     try {
       setIsDeleting(channelId);
-
-      const user = await getCurrentUserAndProfile();
-      if (!user) {
-        setError("You must be logged in to delete channels");
-        return;
-      }
-
-      await deleteProfileChannel(user.id, channelId);
+      await deleteProfileChannel(profile.id, channelId);
 
       // Update the local state to remove the deleted channel
       setChannels((prevChannels) =>
@@ -152,7 +143,7 @@ export default function ChannelsPage() {
     </Card>
   );
 
-  if (isLoading) {
+  if (isLoadingProfile || isLoading) {
     return (
       <AppLayout
         breadcrumbs={[
@@ -177,7 +168,7 @@ export default function ChannelsPage() {
     );
   }
 
-  if (error) {
+  if (error || !profile) {
     return (
       <AppLayout
         breadcrumbs={[
@@ -188,7 +179,9 @@ export default function ChannelsPage() {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-2xl font-bold">YouTube Channels</h1>
-            <p className="text-red-500 dark:text-red-400">{error}</p>
+            <p className="text-red-500 dark:text-red-400">
+              {error || "You must be logged in to view channels"}
+            </p>
           </div>
         </div>
       </AppLayout>
@@ -206,10 +199,10 @@ export default function ChannelsPage() {
         <div>
           <h1 className="text-2xl font-bold">YouTube Channels</h1>
           <p className="text-sm text-muted-foreground">
-            Listing {channels.length} of {PLAN_LIMITS[userPlan]} channels
+            Listing {channels.length} of {PLAN_LIMITS[profile.plan]} channels
           </p>
         </div>
-        {channels.length < PLAN_LIMITS[userPlan] && (
+        {channels.length < PLAN_LIMITS[profile.plan] && (
           <Link href="/dashboard/channels/new">
             <Button>
               <Youtube className="mr-2 h-4 w-4" />
@@ -233,6 +226,7 @@ export default function ChannelsPage() {
                   src={`https://i.ytimg.com/vi/${channel.latestVideoId}/mqdefault.jpg`}
                   alt={`Latest video from ${channel.name}`}
                   fill
+                  priority
                   className="rounded-[5px] object-cover hover:opacity-90 transition-opacity"
                   sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, (max-width: 1536px) 25vw, 20vw"
                 />
@@ -271,12 +265,12 @@ export default function ChannelsPage() {
                   <div className="flex items-center gap-1.5 text-muted-foreground min-w-0">
                     <LinkIcon className="h-3.5 w-3.5 flex-shrink-0" />
                     <a
-                      href={`https://youtube.com/@${channel.url}`}
+                      href={`https://youtube.com/${channel.customUrl}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="hover:underline truncate"
                     >
-                      @{channel.url}
+                      {channel.customUrl}
                     </a>
                   </div>
                 </div>

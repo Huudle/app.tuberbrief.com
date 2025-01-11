@@ -8,44 +8,46 @@ import { Youtube } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getChannelInfo } from "@/lib/youtube";
-import { addYouTubeChannel } from "@/lib/supabase";
-import { getCurrentUserAndProfile, getProfileChannels } from "@/lib/supabase";
-import { PLAN_LIMITS, UserPlan } from "@/lib/constants";
+import { addYouTubeChannel, getProfileChannels } from "@/lib/supabase";
+import { PLAN_LIMITS } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useProfile } from "@/hooks/use-profile";
 
 export default function AddChannelPage() {
+  const { profile, isLoading: isLoadingProfile } = useProfile();
   const [channelInput, setChannelInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentChannels, setCurrentChannels] = useState<number>(0);
-  const [userPlan, setUserPlan] = useState<UserPlan>("free");
+  const [currentChannels, setCurrentChannels] = useState<number | null>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    async function loadUserData() {
-      try {
-        const user = await getCurrentUserAndProfile();
-        if (!user) {
-          router.push("/login");
-          return;
-        }
+  // Check if user has reached their plan limit
+  const hasReachedLimit =
+    profile &&
+    currentChannels != null &&
+    currentChannels >= PLAN_LIMITS[profile.plan];
 
-        setUserPlan(user.profile?.plan || "free");
-        const channels = await getProfileChannels(user.id);
+  useEffect(() => {
+    async function loadChannels() {
+      if (!profile) return;
+
+      try {
+        const channels = await getProfileChannels(profile.id);
         setCurrentChannels(channels.length);
       } catch (err) {
-        console.error("Error loading user data:", err);
-        setError("Failed to load user data");
-      } finally {
-        setIsInitializing(false);
+        console.error("Error loading channels:", err);
+        setError("Failed to load channels");
+        setCurrentChannels(0); // Set to 0 on error to allow form display
       }
     }
 
-    loadUserData();
-  }, [router]);
+    if (!isLoadingProfile) {
+      loadChannels();
+    }
+  }, [profile, isLoadingProfile]);
 
-  if (isInitializing) {
+  // Show loading state while we're loading either profile or channel count
+  if (isLoadingProfile || currentChannels === null) {
     return (
       <AppLayout
         breadcrumbs={[
@@ -88,25 +90,27 @@ export default function AddChannelPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!profile) {
+      setError("You must be logged in to add channels");
+      return;
+    }
+
+    // Check plan limits first
+    if (hasReachedLimit) {
+      setError(
+        `You've reached the limit of ${
+          PLAN_LIMITS[profile.plan]
+        } channels for your ${
+          profile.plan
+        } plan. Please upgrade to add more channels.`
+      );
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      // Get current user
-      const user = await getCurrentUserAndProfile();
-      if (!user) {
-        setError("You must be logged in to add channels");
-        return;
-      }
-
-      // Check plan limits
-      if (currentChannels >= PLAN_LIMITS[userPlan]) {
-        setError(
-          `You&apos;ve reached the limit of ${PLAN_LIMITS[userPlan]} channels for your ${userPlan} plan. Please upgrade to add more channels.`
-        );
-        return;
-      }
-
       // Get channel info from YouTube
       const channelInfo = await getChannelInfo(channelInput);
       if (!channelInfo) {
@@ -116,22 +120,22 @@ export default function AddChannelPage() {
 
       // Save channel to database
       try {
-        await addYouTubeChannel(user.id, {
+        await addYouTubeChannel(profile.id, {
           id: channelInfo.id,
           title: channelInfo.title,
           thumbnail: channelInfo.thumbnail,
           subscriberCount: channelInfo.subscriberCount,
           lastVideoId: channelInfo.lastVideoId || "",
           lastVideoDate: channelInfo.lastVideoDate || new Date().toISOString(),
+          customUrl: channelInfo.customUrl || "",
         });
 
-        // Redirect back to channels list
         router.push("/dashboard/channels");
       } catch (err) {
         if (err instanceof Error && err.name === "DuplicateChannelError") {
           setError(err.message);
         } else {
-          throw err; // Re-throw other errors to be caught by outer catch block
+          throw err;
         }
       }
     } catch (err) {
@@ -161,16 +165,18 @@ export default function AddChannelPage() {
               Add YouTube Channel
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              You are using {currentChannels} of {PLAN_LIMITS[userPlan]}{" "}
-              channels available on your {userPlan} plan.
+              You are using {currentChannels} of{" "}
+              {PLAN_LIMITS[profile?.plan || "free"]} channels available on your{" "}
+              {profile?.plan || "free"} plan.
             </p>
           </CardHeader>
           <CardContent>
-            {currentChannels >= PLAN_LIMITS[userPlan] ? (
+            {hasReachedLimit ? (
               <div className="py-6">
                 <p className="text-muted-foreground mb-4">
-                  You&apos;ve reached the limit of {PLAN_LIMITS[userPlan]}{" "}
-                  channels for your {userPlan} plan.
+                  You&apos;ve reached the limit of{" "}
+                  {PLAN_LIMITS[profile?.plan || "free"]} channels for your{" "}
+                  {profile?.plan || "free"} plan.
                 </p>
                 <Button asChild>
                   <a href="/dashboard/settings/plan">Upgrade Plan</a>

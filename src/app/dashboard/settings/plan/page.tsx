@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { PLANS, UserPlan } from "@/lib/constants";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useProfile } from "@/hooks/use-profile";
 
 function formatPrice(amount: number, currency: string) {
   return new Intl.NumberFormat("en-US", {
@@ -25,34 +27,8 @@ function formatPrice(amount: number, currency: string) {
 }
 
 export default function PlanPage() {
-  const [selectedPlan, setSelectedPlan] = React.useState<UserPlan | null>(null);
+  const { profile, isLoading, refreshProfile } = useProfile();
   const { toast } = useToast();
-
-  // Load current plan
-  React.useEffect(() => {
-    async function loadCurrentPlan() {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("plan")
-          .eq("id", user.id)
-          .single();
-
-        if (profile) {
-          setSelectedPlan(profile.plan);
-        }
-      } catch (error) {
-        console.error("Error loading plan:", error);
-      }
-    }
-
-    loadCurrentPlan();
-  }, []);
 
   const handleUpdatePlan = async (planId: UserPlan) => {
     try {
@@ -71,7 +47,8 @@ export default function PlanPage() {
 
       if (error) throw error;
 
-      setSelectedPlan(planId);
+      await refreshProfile();
+
       toast({
         title: "Plan Updated",
         description: `Successfully switched to ${PLANS[planId].name} plan`,
@@ -84,6 +61,51 @@ export default function PlanPage() {
       });
     }
   };
+
+  if (isLoading) {
+    return (
+      <AppLayout
+        breadcrumbs={[
+          { label: "Settings", href: "/dashboard/settings" },
+          { label: "Plan", active: true },
+        ]}
+      >
+        <div className="w-full max-w-5xl space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold">Plan Settings</h1>
+            <p className="text-sm text-muted-foreground">
+              Choose the plan that best fits your needs
+            </p>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} className="relative">
+                <CardHeader>
+                  <Skeleton className="h-7 w-24 mb-2" />
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-8 w-20 mt-2" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <Skeleton className="h-8 w-32" />
+                    <div className="space-y-2.5">
+                      {Array.from({ length: 4 }).map((_, j) => (
+                        <div key={j} className="flex items-center gap-2">
+                          <Skeleton className="h-4 w-4" />
+                          <Skeleton className="h-4 flex-1" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout
@@ -108,11 +130,11 @@ export default function PlanPage() {
               key={planId}
               className={cn(
                 "relative cursor-pointer transition-all hover:shadow-md",
-                selectedPlan === planId && "border-primary shadow-sm"
+                profile?.plan === planId && "border-primary shadow-sm"
               )}
               onClick={() => handleUpdatePlan(planId)}
             >
-              {selectedPlan === planId && (
+              {profile?.plan === planId && (
                 <div className="absolute right-4 top-4">
                   <Check className="h-6 w-6 text-primary" />
                 </div>
@@ -121,7 +143,7 @@ export default function PlanPage() {
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {plan.name}
-                    {selectedPlan === planId && (
+                    {profile?.plan === planId && (
                       <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md">
                         Current plan
                       </span>

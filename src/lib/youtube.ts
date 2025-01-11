@@ -6,6 +6,7 @@ interface YouTubeChannelInfo {
   subscriberCount: number;
   lastVideoId?: string;
   lastVideoDate?: string;
+  customUrl?: string;
 }
 
 export async function getChannelInfo(

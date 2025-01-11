@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { env } from "@/env.mjs";
+import { GET as getPuppeteerData } from "./route-fallback";
 
 interface Thumbnail {
   url: string;
@@ -28,105 +29,151 @@ interface Channel {
 }
 
 export async function GET(request: Request) {
+  try {
+    // First try with YouTube API
+    const { searchParams } = new URL(request.url);
+    const identifier = searchParams.get("identifier");
+
+    console.log("🎯 API Request - identifier:", identifier);
+
+    if (!identifier) {
+      console.log("❌ Error: Identifier is required");
+      return Response.json({ success: false, error: "Identifier is required" });
+    }
+
+    try {
+      // Try YouTube API first
+      console.log("📡 Attempting YouTube API method first...");
+      const apiResponse = await handleYouTubeAPI(request);
+      const apiData = await apiResponse.json();
+
+      if (apiData.success) {
+        console.log("✅ YouTube API method successful");
+        return Response.json(apiData);
+      }
+
+      // If API fails, try Puppeteer method
+      console.log("⚠️ YouTube API failed, falling back to Puppeteer method...");
+      const puppeteerResponse = await getPuppeteerData(request);
+      const puppeteerData = await puppeteerResponse.json();
+
+      if (puppeteerData.success) {
+        console.log("✅ Puppeteer fallback successful");
+        return Response.json(puppeteerData);
+      }
+
+      // If both methods fail
+      console.log("❌ Both methods failed");
+      return Response.json({
+        success: false,
+        error: "Failed to fetch channel info",
+      });
+    } catch (error) {
+      console.error("💥 Error in primary handler:", error);
+      // Try Puppeteer as fallback
+      console.log("⚠️ Falling back to Puppeteer method...");
+      return getPuppeteerData(request);
+    }
+  } catch (error) {
+    console.error("💥 Critical error:", error);
+    return Response.json({
+      success: false,
+      error: "Failed to fetch channel info",
+    });
+  }
+}
+
+// Move the existing YouTube API logic into a separate function
+async function handleYouTubeAPI(request: Request) {
   const { searchParams } = new URL(request.url);
   const identifier = searchParams.get("identifier");
-
-  console.log("🎯 API Request - identifier:", identifier);
 
   if (!identifier) {
     console.log("❌ Error: Identifier is required");
     return Response.json({ success: false, error: "Identifier is required" });
   }
 
-  try {
-    // Clean up the identifier (handle both URL and channel name)
-    console.log("🔍 Resolving channel ID for:", identifier);
-    const channelId = await resolveChannelId(identifier);
+  // Clean up the identifier (handle both URL and channel name)
+  console.log("🔍 Resolving channel ID for:", identifier);
+  const channelId = await resolveChannelId(identifier);
 
-    if (!channelId) {
-      console.log("❌ Error: Channel not found for identifier:", identifier);
-      return Response.json({ success: false, error: "Channel not found" });
-    }
-    console.log("✅ Channel ID resolved:", channelId);
-
-    // Get channel details
-    console.log("📡 Fetching channel details...");
-    const channelResponse = await fetch(
-      `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${env.YOUTUBE_API_KEY}`
-    );
-    const channelData = await channelResponse.json();
-
-    if (!channelData.items?.length) {
-      console.log("❌ Error: No channel data found for ID:", channelId);
-      return Response.json({ success: false, error: "Channel not found" });
-    }
-    console.log("✅ Channel details fetched");
-
-    const channel: Channel = channelData.items[0];
-
-    // Get latest video (excluding Shorts)
-    console.log("📡 Fetching latest videos...");
-    const videosResponse = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&order=date&maxResults=10&type=video&key=${env.YOUTUBE_API_KEY}`
-    );
-    const videosData = await videosResponse.json();
-
-    console.log("📺 Found videos:", videosData.items?.length);
-
-    // Get detailed video information to check duration
-    const videoIds = videosData.items
-      ?.map((item: any) => item.id.videoId)
-      .join(",");
-    const videoDetailsResponse = await fetch(
-      `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet&id=${videoIds}&key=${env.YOUTUBE_API_KEY}`
-    );
-    const videoDetails = await videoDetailsResponse.json();
-
-    console.log("🎬 Filtering out Shorts...");
-    const latestVideo = videoDetails.items?.find((video: any) => {
-      const duration = video.contentDetails.duration; // PT#M#S format
-      const isShort = duration.match(/PT(\d+)M?/)
-        ? parseInt(duration.match(/PT(\d+)M?/)[1]) < 1
-        : true;
-
-      console.log(`Video ${video.id}:`, {
-        title: video.snippet.title,
-        duration,
-        isShort,
-        isShortByTitle: video.snippet.title.toLowerCase().includes("#shorts"),
-      });
-
-      return !isShort && !video.snippet.title.toLowerCase().includes("#shorts");
-    });
-
-    console.log("✅ Latest non-Short video found:", latestVideo?.id);
-
-    // Log the channel data
-    console.log("🔍 Channel Data:", channel);
-
-    console.log("🔍 Thumbnail:", channel.snippet.thumbnails.default);
-
-    const response = {
-      success: true,
-      channel: {
-        id: channel.id,
-        title: channel.snippet.title,
-        thumbnail: channel.snippet.thumbnails.default.url,
-        subscriberCount: parseInt(channel.statistics.subscriberCount),
-        lastVideoId: videosData.items?.[0]?.id.videoId,
-        lastVideoDate: videosData.items?.[0]?.snippet.publishedAt,
-      },
-    };
-
-    console.log("🎉 Success - Returning channel data:", response);
-    return Response.json(response);
-  } catch (error) {
-    console.error("💥 Error fetching YouTube channel info:", error);
-    return Response.json({
-      success: false,
-      error: "Failed to fetch channel info",
-    });
+  if (!channelId) {
+    console.log("❌ Error: Channel not found for identifier:", identifier);
+    return Response.json({ success: false, error: "Channel not found" });
   }
+  console.log("✅ Channel ID resolved:", channelId);
+
+  // Get channel details
+  console.log("📡 Fetching channel details...");
+  const channelResponse = await fetch(
+    `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${env.YOUTUBE_API_KEY}`
+  );
+  const channelData = await channelResponse.json();
+
+  if (!channelData.items?.length) {
+    console.log("❌ Error: No channel data found for ID:", channelId);
+    return Response.json({ success: false, error: "Channel not found" });
+  }
+  console.log("✅ Channel details fetched");
+
+  const channel: Channel = channelData.items[0];
+
+  // Get latest video (excluding Shorts)
+  console.log("📡 Fetching latest videos...");
+  const videosResponse = await fetch(
+    `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&order=date&maxResults=10&type=video&key=${env.YOUTUBE_API_KEY}`
+  );
+  const videosData = await videosResponse.json();
+
+  console.log("📺 Found videos:", videosData.items?.length);
+
+  // Get detailed video information to check duration
+  const videoIds = videosData.items
+    ?.map((item: any) => item.id.videoId)
+    .join(",");
+  const videoDetailsResponse = await fetch(
+    `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet&id=${videoIds}&key=${env.YOUTUBE_API_KEY}`
+  );
+  const videoDetails = await videoDetailsResponse.json();
+
+  console.log("🎬 Filtering out Shorts...");
+  const latestVideo = videoDetails.items?.find((video: any) => {
+    const duration = video.contentDetails.duration; // PT#M#S format
+    const isShort = duration.match(/PT(\d+)M?/)
+      ? parseInt(duration.match(/PT(\d+)M?/)[1]) < 1
+      : true;
+
+    console.log(`Video ${video.id}:`, {
+      title: video.snippet.title,
+      duration,
+      isShort,
+      isShortByTitle: video.snippet.title.toLowerCase().includes("#shorts"),
+    });
+
+    return !isShort && !video.snippet.title.toLowerCase().includes("#shorts");
+  });
+
+  console.log("✅ Latest non-Short video found:", latestVideo?.id);
+
+  // Log the channel data
+  console.log("🔍 Channel Data:", channel);
+
+  console.log("🔍 Thumbnail:", channel.snippet.thumbnails.default);
+
+  const response = {
+    success: true,
+    channel: {
+      id: channel.id,
+      title: channel.snippet.title,
+      thumbnail: channel.snippet.thumbnails.default.url,
+      subscriberCount: parseInt(channel.statistics.subscriberCount),
+      lastVideoId: videosData.items?.[0]?.id.videoId,
+      lastVideoDate: videosData.items?.[0]?.snippet.publishedAt,
+    },
+  };
+
+  console.log("🎉 Success - Returning channel data:", response);
+  return Response.json(response);
 }
 
 async function resolveChannelId(identifier: string): Promise<string | null> {

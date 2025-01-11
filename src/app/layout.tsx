@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
+import { ProfileProvider } from "@/hooks/use-profile";
 
 export const metadata: Metadata = {
   title: "Flow Fusion - YouTube Channel Monitoring & Summarization",
@@ -31,7 +32,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <ProfileProvider>{children}</ProfileProvider>
         </ThemeProvider>
         <Toaster />
       </body>
