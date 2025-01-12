@@ -1,5 +1,30 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import puppeteer from "puppeteer";
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
+
+const getBrowser = async () => {
+  // For development
+  if (process.env.NODE_ENV === "development") {
+    return puppeteer.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      executablePath:
+        process.platform === "win32"
+          ? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+          : process.platform === "darwin"
+          ? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+          : "/usr/bin/google-chrome",
+    });
+  }
+
+  // For Netlify deployment
+  return puppeteer.launch({
+    args: chromium.args,
+    defaultViewport: chromium.defaultViewport,
+    executablePath: chromium.executablePath.toString(),
+    headless: chromium.headless,
+  });
+};
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -25,10 +50,7 @@ export async function GET(request: Request) {
 
     // Get channel details using Puppeteer
     console.log("🤖 Fetching channel details...");
-    const browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    const browser = await getBrowser();
 
     const page = await browser.newPage();
     await page.goto(`https://www.youtube.com/channel/${channelId}`);
@@ -315,10 +337,7 @@ async function resolveChannelId(identifier: string): Promise<string | null> {
     // If we only have a handle URL, we need to get the canonical URL
     if (channelUrl.includes("/@")) {
       console.log("🔄 Got handle URL, fetching canonical URL...");
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: ["--no-sandbox", "--disable-setuid-sandbox"],
-      });
+      const browser = await getBrowser();
 
       const page = await browser.newPage();
       await page.goto(channelUrl);
@@ -408,10 +427,7 @@ async function validateAndGetChannelUrl(
   let browser;
   try {
     console.log("🤖 Validating channel URL:", testUrl);
-    browser = await puppeteer.launch({
-      headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    });
+    browser = await getBrowser();
 
     const page = await browser.newPage();
 
