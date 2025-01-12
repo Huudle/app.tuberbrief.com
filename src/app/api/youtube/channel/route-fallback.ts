@@ -18,11 +18,12 @@ const getBrowser = async () => {
   }
 
   // For Netlify deployment
+  
   return puppeteer.launch({
-    args: chromium.args,
+    args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
     defaultViewport: chromium.defaultViewport,
-    executablePath: chromium.executablePath.toString(),
-    headless: chromium.headless,
+    executablePath: await chromium.executablePath('/var/task/node_modules/@sparticuz/chromium/bin'),
+    headless: true,
   });
 };
 
@@ -37,7 +38,12 @@ export async function GET(request: Request) {
     return Response.json({ success: false, error: "Identifier is required" });
   }
 
+  let browser;
   try {
+    console.log("🌐 Launching browser...");
+    browser = await getBrowser();
+    console.log("✅ Browser launched successfully");
+
     // Clean up the identifier (handle both URL and channel name)
     console.log("🔍 Resolving channel ID for:", identifier);
     const channelId = await resolveChannelId(identifier);
@@ -50,8 +56,6 @@ export async function GET(request: Request) {
 
     // Get channel details using Puppeteer
     console.log("🤖 Fetching channel details...");
-    const browser = await getBrowser();
-
     const page = await browser.newPage();
     await page.goto(`https://www.youtube.com/channel/${channelId}`);
 
@@ -282,8 +286,6 @@ export async function GET(request: Request) {
       return videoInfos;
     });
 
-    await browser.close();
-
     // Get the latest non-Short video
     const latestVideo = latestVideos[0];
 
@@ -308,6 +310,11 @@ export async function GET(request: Request) {
       success: false,
       error: "Failed to fetch channel info",
     });
+  } finally {
+    if (browser) {
+      await browser.close();
+      console.log("🔒 Browser closed");
+    }
   }
 }
 
