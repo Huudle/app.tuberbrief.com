@@ -43,13 +43,16 @@ export async function GET(request: Request) {
 
     try {
       // Try YouTube API first
-      console.log("📡 Attempting YouTube API method first...");
-      const apiResponse = await handleYouTubeAPI(request);
-      const apiData = await apiResponse.json();
+      // TODO: Uncomment this when we successfully run Puppeteer on Netlify
+      if (false) {
+        console.log("📡 Attempting YouTube API method first...");
+        const apiResponse = await handleYouTubeAPI(request);
+        const apiData = await apiResponse.json();
 
-      if (apiData.success) {
-        console.log("✅ YouTube API method successful");
-        return Response.json(apiData);
+        if (apiData.success) {
+          console.log("✅ YouTube API method successful");
+          return Response.json(apiData);
+        }
       }
 
       // If API fails, try Puppeteer method
