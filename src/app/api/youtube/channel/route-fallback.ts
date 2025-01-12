@@ -18,11 +18,13 @@ const getBrowser = async () => {
   }
 
   // For Netlify deployment
-  
+
   return puppeteer.launch({
-    args: [...chromium.args, '--hide-scrollbars', '--disable-web-security'],
+    args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
     defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath('/var/task/node_modules/@sparticuz/chromium/bin'),
+    executablePath: await chromium.executablePath(
+      "/var/task/node_modules/@sparticuz/chromium/bin"
+    ),
     headless: true,
   });
 };
@@ -499,3 +501,8 @@ async function validateAndGetChannelUrl(
     }
   }
 }
+
+// This enables the function to run in the background for up to 15 minutes
+export const config = {
+  type: "experimental-background",
+};
