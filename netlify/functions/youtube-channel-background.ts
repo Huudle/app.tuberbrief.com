@@ -277,7 +277,7 @@ async function processChannel(channelId: string, profileId: string) {
   }
 }
 
-const handler = async (req: Request, context: Context) => {
+const handler = async (req: MyRequest, context: Context) => {
   const queryParams = new URLSearchParams(req.rawQuery);
   const profileId = queryParams.get("profileId");
   const identifier = queryParams.get("identifier");
