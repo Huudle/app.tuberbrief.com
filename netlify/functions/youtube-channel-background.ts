@@ -251,7 +251,6 @@ async function processChannel(channelId: string, profileId: string) {
     });
 
     // Use the existing addYouTubeChannel function to update the data
-    console.log("🚀 ~ processChannel ~ Calling addYouTubeChannel");
     await addYouTubeChannel(profileId, {
       id: channelId,
       title: channelData.title || "",
@@ -279,7 +278,10 @@ async function processChannel(channelId: string, profileId: string) {
 }
 
 const handler = async (req: Request, context: Context) => {
-  const { identifier, profileId } = context.params;
+  // Parse query parameters from URL
+  const url = new URL(req.url);
+  const identifier = url.searchParams.get("identifier");
+  const profileId = url.searchParams.get("profileId");
 
   console.log("🎯 Background Function Request -", { identifier, profileId });
 

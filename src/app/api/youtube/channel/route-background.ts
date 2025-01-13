@@ -314,7 +314,6 @@ async function processChannel(channelId: string, profileId: string) {
     });
 
     // Use the existing addYouTubeChannel function to update the data
-    console.log("🚀 ~ processChannel ~ Calling addYouTubeChannel");
     await addYouTubeChannel(profileId, {
       id: channelId,
       title: channelData.title || "",
