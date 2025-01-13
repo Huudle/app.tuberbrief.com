@@ -277,13 +277,9 @@ async function processChannel(channelId: string, profileId: string) {
   }
 }
 
-const handler = async (req: Request, context: Context) => {
-// This is a part of req:
-//rawUrl: 'https://flow-fusion.netlify.app/api/youtube/channel?identifier=ardabasoglu&profileId=c6c66393-311d-4ecc-ac18-69fc636151b1',
-// rawQuery: 'identifier=ardabasoglu&profileId=c6c66393-311d-4ecc-ac18-69fc636151b1',
-  const rawQuery = req.rawQuery;
-  const profileId = rawQuery.split("&profileId=")[1];
-  const identifier = rawQuery.split("&identifier=")[1];
+const handler_ = async (req: Request, context: Context) => {
+  console.log("🚀 ~ handler ~ req:", req);
+  const { identifier, profileId } = context.params;
 
   console.log("🎯 Background Function Request -", { identifier, profileId });
 
@@ -343,6 +339,16 @@ const handler = async (req: Request, context: Context) => {
       }),
     };
   }
+};
+
+const handler = async (req: Request, context: Context) => {
+  console.log("🚀 ~ handler ~ req:", req);
+  console.log("🚀 ~ handler ~ context:", context);
+
+  // Wait for 35 seconds
+  console.log("Waiting for 35 seconds...");
+  await new Promise((resolve) => setTimeout(resolve, 35000));
+  console.log("Done");
 };
 
 export { handler };
