@@ -278,8 +278,12 @@ async function processChannel(channelId: string, profileId: string) {
 }
 
 const handler = async (req: Request, context: Context) => {
-  console.log("🚀 ~ handler ~ req:", req);
-  const { identifier, profileId } = context.params;
+// This is a part of req:
+//rawUrl: 'https://flow-fusion.netlify.app/api/youtube/channel?identifier=ardabasoglu&profileId=c6c66393-311d-4ecc-ac18-69fc636151b1',
+// rawQuery: 'identifier=ardabasoglu&profileId=c6c66393-311d-4ecc-ac18-69fc636151b1',
+  const rawQuery = req.rawQuery;
+  const profileId = rawQuery.split("&profileId=")[1];
+  const identifier = rawQuery.split("&identifier=")[1];
 
   console.log("🎯 Background Function Request -", { identifier, profileId });
 
