@@ -278,9 +278,8 @@ async function processChannel(channelId: string, profileId: string) {
 }
 
 const handler = async (req: Request, context: Context) => {
-  const { searchParams } = new URL(req.url);
-  const identifier = searchParams.get("identifier");
-  const profileId = searchParams.get("profileId");
+  console.log("🚀 ~ handler ~ context:", context);
+  const { identifier, profileId } = context.params;
 
   console.log("🎯 Background Function Request -", { identifier, profileId });
 
