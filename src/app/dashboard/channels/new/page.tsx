@@ -8,7 +8,7 @@ import { Youtube } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getChannelInfo } from "@/lib/youtube";
-import { addYouTubeChannel, getProfileChannels } from "@/lib/supabase";
+import { getProfileChannels } from "@/lib/supabase";
 import { PLAN_LIMITS } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/use-profile";
