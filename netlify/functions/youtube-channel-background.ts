@@ -277,9 +277,10 @@ async function processChannel(channelId: string, profileId: string) {
   }
 }
 
-const handler_ = async (req: Request, context: Context) => {
-  console.log("🚀 ~ handler ~ req:", req);
-  const { identifier, profileId } = context.params;
+const handler = async (req: Request, context: Context) => {
+  const queryParams = new URLSearchParams(req.rawQuery);
+  const profileId = queryParams.get("profileId");
+  const identifier = queryParams.get("identifier");
 
   console.log("🎯 Background Function Request -", { identifier, profileId });
 
@@ -342,14 +343,14 @@ const handler_ = async (req: Request, context: Context) => {
 };
 
 type MyRequest = {
-    rawUrl: string;
-    rawQuery: string;
-    path: string;
-    httpMethod: string;
-    headers: Record<string, string>;
-  };
+  rawUrl: string;
+  rawQuery: string;
+  path: string;
+  httpMethod: string;
+  headers: Record<string, string>;
+};
 
-const handler = async (req: MyRequest, context: Context) => {
+const handler_ = async (req: MyRequest, context: Context) => {
   const queryParams = new URLSearchParams(req.rawQuery);
   const profileId = queryParams.get("profileId");
   const identifier = queryParams.get("identifier");
