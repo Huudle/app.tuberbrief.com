@@ -341,14 +341,20 @@ const handler_ = async (req: Request, context: Context) => {
   }
 };
 
-const handler = async (req: Request, context: Context) => {
-  console.log("🚀 ~ handler ~ req:", req);
-  console.log("🚀 ~ handler ~ context:", context);
+type MyRequest = {
+    rawUrl: string;
+    rawQuery: string;
+    path: string;
+    httpMethod: string;
+    headers: Record<string, string>;
+  };
 
-  // Wait for 35 seconds
-  console.log("Waiting for 35 seconds...");
-  await new Promise((resolve) => setTimeout(resolve, 35000));
-  console.log("Done");
+const handler = async (req: MyRequest, context: Context) => {
+  const queryParams = new URLSearchParams(req.rawQuery);
+  const profileId = queryParams.get("profileId");
+  const identifier = queryParams.get("identifier");
+  console.log("🚀 ~ handler ~ profileId:", profileId);
+  console.log("🚀 ~ handler ~ identifier:", identifier);
 };
 
 export { handler };
