@@ -5,7 +5,6 @@ import {
 } from "@/lib/supabase";
 import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
-import { Context } from "@netlify/functions";
 
 const getBrowser = async () => {
   return puppeteer.launch({
@@ -200,6 +199,7 @@ async function processChannel(channelId: string, profileId: string) {
 
       const subscriberText = subscriberXPath?.textContent?.trim();
       if (subscriberText) {
+        console.log("🚀 ~ channelData ~ subscriberText:", subscriberText)
         const match = subscriberText.match(/[\d,.]+[KMB]?/);
         if (match) {
           const numStr = match[0];
@@ -276,7 +276,7 @@ async function processChannel(channelId: string, profileId: string) {
   }
 }
 
-const handler = async (req: MyRequest, context: Context) => {
+const handler = async (req: MyRequest) => {
   const queryParams = new URLSearchParams(req.rawQuery);
   const profileId = queryParams.get("profileId");
   const identifier = queryParams.get("identifier");
@@ -347,14 +347,6 @@ type MyRequest = {
   path: string;
   httpMethod: string;
   headers: Record<string, string>;
-};
-
-const handler_ = async (req: MyRequest, context: Context) => {
-  const queryParams = new URLSearchParams(req.rawQuery);
-  const profileId = queryParams.get("profileId");
-  const identifier = queryParams.get("identifier");
-  console.log("🚀 ~ handler ~ profileId:", profileId);
-  console.log("🚀 ~ handler ~ identifier:", identifier);
 };
 
 export { handler };

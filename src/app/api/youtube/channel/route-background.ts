@@ -264,6 +264,7 @@ async function processChannel(channelId: string, profileId: string) {
 
       const subscriberText = subscriberXPath?.textContent?.trim();
       if (subscriberText) {
+        console.log("🚀 ~ channelData ~ subscriberText:", subscriberText)
         const match = subscriberText.match(/[\d,.]+[KMB]?/);
         if (match) {
           const numStr = match[0];

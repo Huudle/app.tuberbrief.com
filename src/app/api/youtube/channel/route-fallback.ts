@@ -84,6 +84,7 @@ export async function GET(request: Request) {
 
       const subscriberText = subscriberXPath?.textContent?.trim();
       if (subscriberText) {
+        console.log("🚀 ~ channelData ~ subscriberText:", subscriberText)
         const match = subscriberText.match(/[\d,.]+[KMB]?/);
         if (match) {
           const numStr = match[0];
