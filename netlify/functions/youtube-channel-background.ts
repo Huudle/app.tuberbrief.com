@@ -118,7 +118,6 @@ async function validateAndGetChannelUrl(
     console.log("🤖 Validating channel URL:", testUrl);
     browser = await getBrowser();
     const page = await browser.newPage();
-    await page.setDefaultNavigationTimeout(10000);
     const response = await page.goto(testUrl);
 
     const finalUrl = page.url();
