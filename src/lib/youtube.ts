@@ -1,7 +1,7 @@
 export async function getChannelInfo(identifier: string, profileId: string) {
   try {
     const response = await fetch(
-      `/.netlify/functions/youtube-channel-background?identifier=${encodeURIComponent(
+      `/api/youtube/channel?identifier=${encodeURIComponent(
         identifier
       )}&profileId=${profileId}`
     );

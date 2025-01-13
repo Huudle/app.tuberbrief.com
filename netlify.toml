@@ -12,3 +12,9 @@
 
 [functions.youtube-channel-background]
   background = true
+
+[[redirects]]
+  from = "/api/youtube/channel"
+  to = "/.netlify/functions/youtube-channel-background"
+  status = 200
+  force = true
