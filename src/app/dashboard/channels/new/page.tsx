@@ -112,14 +112,16 @@ export default function AddChannelPage() {
 
     try {
       // Get channel info from YouTube
-      const channelInfo = await getChannelInfo(channelInput);
-      if (!channelInfo) {
+      const channelInfo = await getChannelInfo(channelInput, profile.id);
+      console.log("🚀 ~ handleSubmit ~ channelInfo:", channelInfo);
+      /* if (!channelInfo) {
         setError("Channel not found. Please check the URL or channel name.");
         return;
-      }
+      } */
 
       // Save channel to database
       try {
+        /* console.log(" Calling addYouTubeChannel");
         await addYouTubeChannel(profile.id, {
           id: channelInfo.id,
           title: channelInfo.title,
@@ -128,7 +130,7 @@ export default function AddChannelPage() {
           lastVideoId: channelInfo.lastVideoId || "",
           lastVideoDate: channelInfo.lastVideoDate || new Date().toISOString(),
           customUrl: channelInfo.customUrl || "",
-        });
+        }); */
 
         router.push("/dashboard/channels");
       } catch (err) {

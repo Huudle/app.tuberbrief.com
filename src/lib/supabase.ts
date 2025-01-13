@@ -28,6 +28,14 @@ export interface ChannelListItem {
   createdAt: string;
 }
 
+export interface ChannelProcessingStatus {
+  success: boolean;
+  status: "pending" | "completed" | "failed";
+  channelId?: string;
+  message?: string;
+  error?: string;
+}
+
 interface ChannelQueryResult {
   id: string;
   created_at: string;
@@ -253,4 +261,81 @@ export async function deleteProfileChannel(
     console.error("💥 Error in deleteProfileChannel:", error);
     throw error;
   }
+}
+
+export async function createOrUpdateChannel(
+  channelId: string,
+  identifier: string
+): Promise<ChannelProcessingStatus> {
+  // Check if channel already exists
+  const { data: existingChannel } = await supabase
+    .from("youtube_channels")
+    .select("*")
+    .eq("id", channelId)
+    .single();
+
+  if (existingChannel) {
+    // Update existing channel's processing status
+    await supabase
+      .from("youtube_channels")
+      .update({
+        processing_status: "pending",
+        last_sync_at: new Date().toISOString(),
+        sync_error: null,
+      })
+      .eq("id", channelId);
+
+    return {
+      success: true,
+      status: "pending",
+      channelId,
+      message: "Channel update started",
+    };
+  }
+
+  // Create initial channel record
+  const { error: channelError } = await supabase
+    .from("youtube_channels")
+    .insert([
+      {
+        id: channelId,
+        identifier,
+        processing_status: "pending",
+        last_sync_at: new Date().toISOString(),
+        sync_error: null,
+      },
+    ])
+    .select()
+    .single();
+
+  if (channelError) {
+    console.log("💥 Error creating channel:", channelError);
+    return {
+      success: false,
+      status: "failed",
+      error: "Failed to create channel",
+    };
+  }
+
+  return {
+    success: true,
+    status: "pending",
+    channelId,
+    message: "Channel processing started",
+  };
+}
+
+export async function updateChannelProcessingStatus(
+  channelId: string,
+  status: "completed" | "failed",
+  error?: string
+) {
+  await supabase
+    .from("youtube_channels")
+    .update({
+      processing_status: status,
+      last_sync_at: new Date().toISOString(),
+      sync_error: error || null,
+    })
+    .eq("id", channelId);
 }
