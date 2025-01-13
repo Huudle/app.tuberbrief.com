@@ -17,7 +17,7 @@ export async function GET(request: Request) {
       // Try YouTube API first (if enabled)
       if (false) { // TODO: Enable when needed
         console.log("📡 Attempting YouTube API method...");
-        const apiData = await handleYouTubeAPI(identifier);
+        const apiData = await handleYouTubeAPI(identifier || "");
         if (apiData.success) {
           console.log("✅ YouTube API method successful");
           return Response.json(apiData);
