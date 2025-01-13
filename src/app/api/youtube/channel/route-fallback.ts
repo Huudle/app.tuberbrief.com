@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
 

@@ -1,36 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { env } from "@/env.mjs";
-import { GET as getPuppeteerData } from "./route-fallback";
-
-interface Thumbnail {
-  url: string;
-  width: number;
-  height: number;
-}
-
-interface Channel {
-  kind: string;
-  etag: string;
-  id: string;
-  snippet: {
-    title: string;
-    description: string;
-    customUrl: string;
-    publishedAt: string;
-    thumbnails: { default: Thumbnail; medium: Thumbnail; high: Thumbnail };
-    localized: { title: string; description: string };
-  };
-  statistics: {
-    viewCount: string;
-    subscriberCount: string;
-    hiddenSubscriberCount: boolean;
-    videoCount: string;
-  };
-}
 
 export async function GET(request: Request) {
   try {
-    // First try with YouTube API
     const { searchParams } = new URL(request.url);
     const identifier = searchParams.get("identifier");
 
@@ -42,40 +14,72 @@ export async function GET(request: Request) {
     }
 
     try {
-      // Try YouTube API first
-      // TODO: Uncomment this when we successfully run Puppeteer on Netlify
-      if (false) {
-        console.log("📡 Attempting YouTube API method first...");
-        const apiResponse = await handleYouTubeAPI(request);
-        const apiData = await apiResponse.json();
-
+      // Try YouTube API first (if enabled)
+      if (false) { // TODO: Enable when needed
+        console.log("📡 Attempting YouTube API method...");
+        const apiData = await handleYouTubeAPI(identifier);
         if (apiData.success) {
           console.log("✅ YouTube API method successful");
           return Response.json(apiData);
         }
       }
 
-      // If API fails, try Puppeteer method
-      console.log("⚠️ YouTube API failed, falling back to Puppeteer method...");
-      const puppeteerResponse = await getPuppeteerData(request);
-      const puppeteerData = await puppeteerResponse.json();
+      // Fallback to Puppeteer method using separate endpoints
+      console.log("🤖 Using Puppeteer fallback method...");
+      
+      // 1. Resolve Channel ID
+      console.log("1️⃣ Resolving channel ID...");
+      const resolveResponse = await fetch(
+        `${request.url.split('?')[0]}/resolve?identifier=${encodeURIComponent(identifier)}`
+      );
+      const resolveData = await resolveResponse.json();
 
-      if (puppeteerData.success) {
-        console.log("✅ Puppeteer fallback successful");
-        return Response.json(puppeteerData);
+      if (!resolveData.success) {
+        console.log("❌ Failed to resolve channel ID");
+        return Response.json(resolveData);
       }
 
-      // If both methods fail
-      console.log("❌ Both methods failed");
+      const channelId = resolveData.channelId;
+      console.log("✅ Channel ID resolved:", channelId);
+
+      // 2. Get Channel Details
+      console.log("2️⃣ Fetching channel details...");
+      const detailsResponse = await fetch(
+        `${request.url.split('?')[0]}/details?channelId=${channelId}`
+      );
+      const detailsData = await detailsResponse.json();
+
+      if (!detailsData.success) {
+        console.log("❌ Failed to fetch channel details");
+        return Response.json(detailsData);
+      }
+
+      // 3. Get Latest Videos
+      console.log("3️⃣ Fetching latest videos...");
+      const videosResponse = await fetch(
+        `${request.url.split('?')[0]}/videos?channelId=${channelId}`
+      );
+      const videosData = await videosResponse.json();
+
+      // Combine the results
+      const response = {
+        success: true,
+        channel: {
+          ...detailsData.channel,
+          lastVideoId: videosData.success ? videosData.videos[0]?.id : null,
+          lastVideoDate: videosData.success ? videosData.videos[0]?.publishedAt : null,
+        },
+      };
+
+      console.log("🎉 Success - Returning combined data");
+      return Response.json(response);
+
+    } catch (error) {
+      console.error("💥 Error in primary handler:", error);
       return Response.json({
         success: false,
         error: "Failed to fetch channel info",
       });
-    } catch (error) {
-      console.error("💥 Error in primary handler:", error);
-      // Try Puppeteer as fallback
-      console.log("⚠️ Falling back to Puppeteer method...");
-      return getPuppeteerData(request);
     }
   } catch (error) {
     console.error("💥 Critical error:", error);
@@ -86,84 +90,33 @@ export async function GET(request: Request) {
   }
 }
 
-// Move the existing YouTube API logic into a separate function
-async function handleYouTubeAPI(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const identifier = searchParams.get("identifier");
-
-  if (!identifier) {
-    console.log("❌ Error: Identifier is required");
-    return Response.json({ success: false, error: "Identifier is required" });
-  }
-
-  // Clean up the identifier (handle both URL and channel name)
-  console.log("🔍 Resolving channel ID for:", identifier);
+// Keep the YouTube API method for future use
+async function handleYouTubeAPI(identifier: string) {
+  // ... (keep existing YouTube API implementation)
   const channelId = await resolveChannelId(identifier);
 
   if (!channelId) {
-    console.log("❌ Error: Channel not found for identifier:", identifier);
-    return Response.json({ success: false, error: "Channel not found" });
+    return { success: false, error: "Channel not found" };
   }
-  console.log("✅ Channel ID resolved:", channelId);
 
-  // Get channel details
-  console.log("📡 Fetching channel details...");
   const channelResponse = await fetch(
     `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${env.YOUTUBE_API_KEY}`
   );
   const channelData = await channelResponse.json();
 
   if (!channelData.items?.length) {
-    console.log("❌ Error: No channel data found for ID:", channelId);
-    return Response.json({ success: false, error: "Channel not found" });
+    return { success: false, error: "Channel not found" };
   }
-  console.log("✅ Channel details fetched");
 
-  const channel: Channel = channelData.items[0];
-
-  // Get latest video (excluding Shorts)
-  console.log("📡 Fetching latest videos...");
+  const channel = channelData.items[0];
+  
+  // Get latest videos
   const videosResponse = await fetch(
-    `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&order=date&maxResults=10&type=video&key=${env.YOUTUBE_API_KEY}`
+    `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&order=date&maxResults=1&type=video&key=${env.YOUTUBE_API_KEY}`
   );
   const videosData = await videosResponse.json();
 
-  console.log("📺 Found videos:", videosData.items?.length);
-
-  // Get detailed video information to check duration
-  const videoIds = videosData.items
-    ?.map((item: any) => item.id.videoId)
-    .join(",");
-  const videoDetailsResponse = await fetch(
-    `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet&id=${videoIds}&key=${env.YOUTUBE_API_KEY}`
-  );
-  const videoDetails = await videoDetailsResponse.json();
-
-  console.log("🎬 Filtering out Shorts...");
-  const latestVideo = videoDetails.items?.find((video: any) => {
-    const duration = video.contentDetails.duration; // PT#M#S format
-    const isShort = duration.match(/PT(\d+)M?/)
-      ? parseInt(duration.match(/PT(\d+)M?/)[1]) < 1
-      : true;
-
-    console.log(`Video ${video.id}:`, {
-      title: video.snippet.title,
-      duration,
-      isShort,
-      isShortByTitle: video.snippet.title.toLowerCase().includes("#shorts"),
-    });
-
-    return !isShort && !video.snippet.title.toLowerCase().includes("#shorts");
-  });
-
-  console.log("✅ Latest non-Short video found:", latestVideo?.id);
-
-  // Log the channel data
-  console.log("🔍 Channel Data:", channel);
-
-  console.log("🔍 Thumbnail:", channel.snippet.thumbnails.default);
-
-  const response = {
+  return {
     success: true,
     channel: {
       id: channel.id,
@@ -174,167 +127,64 @@ async function handleYouTubeAPI(request: Request) {
       lastVideoDate: videosData.items?.[0]?.snippet.publishedAt,
     },
   };
-
-  console.log("🎉 Success - Returning channel data:", response);
-  return Response.json(response);
 }
 
+// Helper function for YouTube API method
 async function resolveChannelId(identifier: string): Promise<string | null> {
   try {
-    console.log("🔍 Resolving channel ID - Input:", identifier);
-
-    // Handle different URL formats
     if (identifier.includes("youtube.com") || identifier.includes("youtu.be")) {
       const url = new URL(identifier);
-      console.log("📝 URL detected:", url.toString());
-
-      // Handle @username format
+      
       if (url.pathname.startsWith("/@")) {
         const username = url.pathname.slice(2);
-        console.log("👤 Found @username format:", username);
         return await getChannelIdFromUsername(username);
       }
 
-      // Handle /channel/ID format
       if (url.pathname.includes("/channel/")) {
-        const channelId = url.pathname.split("/channel/")[1];
-        console.log("🆔 Found channel ID format:", channelId);
-        return channelId;
+        return url.pathname.split("/channel/")[1];
       }
 
-      // Handle /c/customURL format
       if (url.pathname.startsWith("/c/")) {
         const customUrl = url.pathname.slice(3);
-        console.log("🔗 Found custom URL format:", customUrl);
         return await getChannelIdFromCustomUrl(customUrl);
       }
     }
 
-    // If not a URL, try as username
-    console.log("👤 Trying as username:", identifier);
     return await getChannelIdFromUsername(identifier);
   } catch (error) {
-    console.error("💥 Error resolving channel ID:", error);
+    console.error("Error resolving channel ID:", error);
     return null;
   }
 }
 
-async function getChannelIdFromUsername(
-  username: string
-): Promise<string | null> {
+// Keep these helper functions for the YouTube API method
+async function getChannelIdFromUsername(username: string): Promise<string | null> {
   try {
-    console.log("📡 Fetching channel ID for username:", username);
-    const url = `https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${username}&key=${env.YOUTUBE_API_KEY}`;
-    console.log("🔗 API URL:", url);
-
-    const response = await fetch(url);
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${username}&key=${env.YOUTUBE_API_KEY}`
+    );
     const data = await response.json();
-
-    console.log("📦 YouTube API Response:", data);
-
-    if (data.error) {
-      console.error("❌ YouTube API Error:", data.error);
-      return null;
-    }
-
-    if (!data.items?.length) {
-      console.log("⚠️ No channel found for username:", username);
-      // Try search as a fallback
-      return await searchChannelByUsername(username);
-    }
-
-    console.log("✅ Channel ID found:", data.items[0].id);
-    return data.items[0].id;
+    return data.items?.[0]?.id || await searchChannelByUsername(username);
   } catch (error) {
-    console.error("💥 Error getting channel ID from username:", error);
+    console.error("Error getting channel ID from username:", error);
     return null;
   }
 }
 
-// Add a new fallback method using search
-async function searchChannelByUsername(
-  username: string
-): Promise<string | null> {
+async function searchChannelByUsername(username: string): Promise<string | null> {
   try {
-    console.log("🔍 Trying search fallback for:", username);
-    // GET https://www.googleapis.com/youtube/v3/search?part=snippet&q=@VercelHQ&type=channel&maxResults=1&key=YOUR_API_KEY
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${username}&type=channel&key=${env.YOUTUBE_API_KEY}`;
-    console.log("🔗 Search API URL:", url);
-
-    const response = await fetch(url);
+    const response = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${username}&type=channel&key=${env.YOUTUBE_API_KEY}`
+    );
     const data = await response.json();
-
-    console.log("📦 Search API Response:", data);
-
-    if (data.error) {
-      console.error("❌ Search API Error:", data.error);
-      return null;
-    }
-
-    if (!data.items?.length) {
-      console.log("⚠️ No channel found in search for:", username);
-      return null;
-    }
-
-    // Log all items before filtering
-    console.log("🔍 Searching through items:", data.items.length);
-    data.items.forEach((item: any, index: number) => {
-      const normalizedUsername = username.toLowerCase().replace(/\s+/g, "");
-      const normalizedTitle = item.snippet.title
-        .toLowerCase()
-        .replace(/\s+/g, "");
-      const normalizedChannelTitle = item.snippet.channelTitle
-        .toLowerCase()
-        .replace(/\s+/g, "");
-
-      console.log(`
-Item ${index + 1}:
-- Title: "${item.snippet.title}"
-- Channel Title: "${item.snippet.channelTitle}"
-- Looking for: "${username}"
-- Normalized username: "${normalizedUsername}"
-- Normalized title: "${normalizedTitle}"
-- Normalized channel title: "${normalizedChannelTitle}"
-- Title matches: ${normalizedUsername.includes(normalizedTitle)}
-- Channel Title matches: ${normalizedUsername.includes(normalizedChannelTitle)}
-      `);
-    });
-
-    const channel = data.items.find((item: any) => {
-      const normalizedUsername = username.toLowerCase().replace(/\s+/g, "");
-      const normalizedTitle = item.snippet.title
-        .toLowerCase()
-        .replace(/\s+/g, "");
-      const normalizedChannelTitle = item.snippet.channelTitle
-        .toLowerCase()
-        .replace(/\s+/g, "");
-
-      const titleMatch = normalizedUsername.includes(normalizedTitle);
-      const channelTitleMatch = normalizedUsername.includes(
-        normalizedChannelTitle
-      );
-
-      return titleMatch || channelTitleMatch;
-    });
-
-    if (!channel) {
-      console.log("❌ No exact match found, using first result instead");
-      return data.items[0]?.id.channelId || null;
-    }
-
-    console.log("🔍 Channel:", channel);
-
-    console.log("✅ Channel ID found from search:", channel.id.channelId);
-    return channel.id.channelId;
+    return data.items?.[0]?.id.channelId || null;
   } catch (error) {
-    console.error("💥 Error searching for channel:", error);
+    console.error("Error searching for channel:", error);
     return null;
   }
 }
 
-async function getChannelIdFromCustomUrl(
-  customUrl: string
-): Promise<string | null> {
+async function getChannelIdFromCustomUrl(customUrl: string): Promise<string | null> {
   try {
     const response = await fetch(
       `https://www.googleapis.com/youtube/v3/search?part=id&q=${customUrl}&type=channel&key=${env.YOUTUBE_API_KEY}`
