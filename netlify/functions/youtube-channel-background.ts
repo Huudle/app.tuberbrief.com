@@ -278,7 +278,7 @@ async function processChannel(channelId: string, profileId: string) {
 }
 
 const handler = async (req: Request, context: Context) => {
-  console.log("🚀 ~ handler ~ context:", context);
+  console.log("🚀 ~ handler ~ req:", req);
   const { identifier, profileId } = context.params;
 
   console.log("🎯 Background Function Request -", { identifier, profileId });
