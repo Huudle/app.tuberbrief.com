@@ -57,7 +57,7 @@ export async function GET(channelId: string, profileId: string) {
     // Start background processing
     processChannel(channelId, profileId).catch(console.error);
 
-    // Return immediately with channel ID
+    // Return immediately with success
     return Response.json(result);
   } catch (error) {
     console.error("💥 Error:", error);
@@ -69,13 +69,18 @@ export async function GET(channelId: string, profileId: string) {
 }
 
 async function processChannel(channelId: string, profileId: string) {
+  const startTime = performance.now();
   let browser;
+  console.log("🎬 Starting channel processing for:", channelId);
+
   try {
     browser = await getBrowser();
+    console.log("🌐 Browser launched:", performance.now() - startTime, "ms");
 
     // Get channel details
     const page = await browser.newPage();
     await page.goto(`https://www.youtube.com/channel/${channelId}/videos`);
+    console.log("📄 Page loaded:", performance.now() - startTime, "ms");
 
     const channelData = await page.evaluate(() => {
       const title = document
@@ -135,7 +140,6 @@ async function processChannel(channelId: string, profileId: string) {
         ?.split("v=")[1]
         ?.split("&")[0];
 
-      // Updated latest video date text extraction using the documented selectors
       const latestVideoDateText =
         document
           .querySelector(
@@ -155,6 +159,7 @@ async function processChannel(channelId: string, profileId: string) {
         latestVideoDateText,
       };
     });
+    console.log("📊 Channel data extracted:", performance.now() - startTime, "ms");
 
     // Parse the relative time outside of page.evaluate()
     const lastVideoDate = channelData.latestVideoDateText
@@ -168,14 +173,20 @@ async function processChannel(channelId: string, profileId: string) {
       thumbnail: channelData.thumbnail || "",
       subscriberCount: channelData.subscriberCount || 0,
       lastVideoId: channelData.latestVideoId || "",
-      lastVideoDate, // Use the parsed date
+      lastVideoDate,
       customUrl: channelData.customUrl || "",
     });
+    console.log("💾 Channel data saved:", performance.now() - startTime, "ms");
 
     // Update processing status
     await updateChannelProcessingStatus(channelId, "completed");
+    const endTime = performance.now();
+    console.log("✅ Channel processing completed in:", endTime - startTime, "ms");
+
   } catch (error) {
+    const errorTime = performance.now();
     console.error("💥 Error processing channel:", error);
+    console.log("❌ Failed after:", errorTime - startTime, "ms");
     await updateChannelProcessingStatus(
       channelId,
       "failed",
@@ -184,6 +195,7 @@ async function processChannel(channelId: string, profileId: string) {
   } finally {
     if (browser) {
       await browser.close();
+      console.log("🏁 Browser closed:", performance.now() - startTime, "ms");
     }
   }
 }

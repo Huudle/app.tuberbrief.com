@@ -54,7 +54,6 @@ export async function GET(request: Request) {
 
   try {
     const result = await fetchChannelFeed(channelId);
-    console.log("🚀 ~ GET ~ result.data:", result.data);
     return Response.json(result.data);
   } catch (error) {
     console.error("Error fetching channel feed:", error);
