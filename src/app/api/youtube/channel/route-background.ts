@@ -75,7 +75,7 @@ async function processChannel(channelId: string, profileId: string) {
 
     // Get channel details
     const page = await browser.newPage();
-    await page.goto(`https://www.youtube.com/channel/${channelId}`);
+    await page.goto(`https://www.youtube.com/channel/${channelId}/videos`);
 
     const channelData = await page.evaluate(() => {
       const title = document
@@ -135,11 +135,14 @@ async function processChannel(channelId: string, profileId: string) {
         ?.split("v=")[1]
         ?.split("&")[0];
 
-      // Updated latest video date text extraction
+      // Updated latest video date text extraction using the documented selectors
       const latestVideoDateText =
         document
           .querySelector(
-            "#metadata-line span.style-scope.ytd-grid-video-renderer:nth-child(2)"
+            // Try the CSS selector first
+            "#metadata-line > span:nth-child(4), " +
+              // Fallback to newer layout selector
+              "#metadata-line span.style-scope.ytd-grid-video-renderer:nth-child(2)"
           )
           ?.textContent?.trim() || "";
 
