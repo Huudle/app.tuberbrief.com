@@ -5,6 +5,7 @@ import {
 } from "@/lib/supabase";
 import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
+import { parseRelativeTime } from "@/lib/utils";
 
 const getBrowser = async () => {
   return puppeteer.launch({
@@ -74,7 +75,8 @@ async function resolveYouTubeChannelUrl(
     }
 
     const patterns = {
-      fullUrl: /^(https?:\/\/)?(www\.)?youtube\.com\/@[\w-]+/,
+      fullUrl:
+        /^(https?:\/\/)?(www\.)?youtube\.com\/(@[\w-]+|c\/[\w-]+|channel\/[\w-]+|[\w-]+)/,
       channelHandle: /^@[\w-]+$/,
       username: /^[\w-]+$/,
     };
@@ -117,6 +119,7 @@ async function validateAndGetChannelUrl(
     console.log("🤖 Validating channel URL:", testUrl);
     browser = await getBrowser();
     const page = await browser.newPage();
+    await page.setDefaultNavigationTimeout(10000);
     const response = await page.goto(testUrl);
 
     const finalUrl = page.url();
@@ -199,7 +202,7 @@ async function processChannel(channelId: string, profileId: string) {
 
       const subscriberText = subscriberXPath?.textContent?.trim();
       if (subscriberText) {
-        console.log("🚀 ~ channelData ~ subscriberText:", subscriberText)
+        console.log("🚀 ~ channelData ~ subscriberText:", subscriberText);
         const match = subscriberText.match(/[\d,.]+[KMB]?/);
         if (match) {
           const numStr = match[0];
@@ -237,7 +240,12 @@ async function processChannel(channelId: string, profileId: string) {
         ?.split("v=")[1]
         ?.split("&")[0];
 
-      const latestVideoDate = new Date().toISOString(); // You might want to get the actual date
+      const latestVideoDateText =
+        document
+          .querySelector(
+            "#metadata-line span.style-scope.ytd-grid-video-renderer:nth-child(2)"
+          )
+          ?.textContent?.trim() || "";
 
       return {
         title,
@@ -245,9 +253,14 @@ async function processChannel(channelId: string, profileId: string) {
         subscriberCount,
         customUrl: customUrl ? customUrl.replace(/^@+/, "@") : null,
         latestVideoId,
-        latestVideoDate,
+        latestVideoDateText,
       };
     });
+
+    // Parse the relative time outside of page.evaluate()
+    const lastVideoDate = channelData.latestVideoDateText
+      ? parseRelativeTime(channelData.latestVideoDateText)
+      : new Date().toISOString();
 
     // Use the existing addYouTubeChannel function to update the data
     await addYouTubeChannel(profileId, {
@@ -256,7 +269,7 @@ async function processChannel(channelId: string, profileId: string) {
       thumbnail: channelData.thumbnail || "",
       subscriberCount: channelData.subscriberCount || 0,
       lastVideoId: channelData.latestVideoId || "",
-      lastVideoDate: channelData.latestVideoDate || new Date().toISOString(),
+      lastVideoDate,
       customUrl: channelData.customUrl || "",
     });
 

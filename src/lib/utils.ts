@@ -61,3 +61,51 @@ export function getRelativeTime(date: string | Date): string {
     return `${years} ${years === 1 ? "year" : "years"} ago`;
   }
 }
+
+export function parseRelativeTime(relativeTime: string): string {
+  console.log("🕒 Parsing relative time:", relativeTime);
+  const now = new Date();
+  const units: Record<string, number> = {
+    second: 1000,
+    minute: 60 * 1000,
+    hour: 60 * 60 * 1000,
+    day: 24 * 60 * 60 * 1000,
+    week: 7 * 24 * 60 * 60 * 1000,
+    month: 30 * 24 * 60 * 60 * 1000,
+    year: 365 * 24 * 60 * 60 * 1000,
+  };
+
+  // Handle "just now" or empty cases
+  if (!relativeTime || relativeTime === "just now") {
+    console.log("⚡ Returning current time for empty/just now case");
+    return now.toISOString();
+  }
+
+  // Clean up input
+  const cleanInput = relativeTime.trim().toLowerCase();
+  console.log("🧹 Cleaned input:", cleanInput);
+
+  // Match patterns like "1 hour ago", "2 days ago", etc.
+  const match = cleanInput.match(
+    /^(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago$/
+  );
+  if (!match) {
+    console.warn("⚠️ Could not parse relative time:", relativeTime);
+    return now.toISOString();
+  }
+
+  const [, countStr, unit] = match;
+  const count = parseInt(countStr, 10);
+  console.log("🔢 Parsed values:", { count, unit });
+
+  if (!(unit in units)) {
+    console.warn("⚠️ Unknown time unit:", unit);
+    return now.toISOString();
+  }
+
+  const msAgo = count * units[unit];
+  const date = new Date(now.getTime() - msAgo);
+  console.log("📅 Calculated date:", date.toISOString());
+
+  return date.toISOString();
+}

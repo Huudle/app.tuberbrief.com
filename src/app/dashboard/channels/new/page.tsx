@@ -111,6 +111,16 @@ export default function AddChannelPage() {
     setError(null);
 
     try {
+      // Validate URL if it looks like a URL
+      const isValid = await isValidYouTubeUrl(channelInput);
+      if (!isValid) {
+        setError(
+          "Invalid YouTube channel URL. Please check the URL and try again."
+        );
+        setIsLoading(false);
+        return;
+      }
+
       // Get channel info from YouTube
       const channelInfo = await getChannelInfo(channelInput, profile.id);
       console.log("🚀 ~ handleSubmit ~ channelInfo:", channelInfo);
@@ -152,6 +162,46 @@ export default function AddChannelPage() {
     }
   };
 
+  async function isValidYouTubeUrl(url: string): Promise<boolean> {
+    try {
+      // Step 1: Validate URL format
+      const parsedUrl = new URL(url);
+
+      // Step 2: Check if the URL belongs to the YouTube domain
+      const validDomains = ["youtube.com", "www.youtube.com"];
+      if (!validDomains.includes(parsedUrl.hostname)) {
+        console.log("❌ Invalid domain:", parsedUrl.hostname);
+        return false;
+      }
+
+      // Step 3: Check if the URL has a valid channel path format
+      const validPathPatterns = [
+        /^\/@[\w-]+$/, // @username format
+        /^\/c\/[\w-]+$/, // /c/channel-name format
+        /^\/channel\/[\w-]+$/, // /channel/ID format
+        /^\/[\w-]+$/, // direct channel name format
+      ];
+
+      const hasValidPath = validPathPatterns.some((pattern) =>
+        pattern.test(parsedUrl.pathname)
+      );
+
+      if (!hasValidPath) {
+        console.log("❌ Invalid channel URL path:", parsedUrl.pathname);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.log("❌ Validation error:", {
+        name: error instanceof Error ? error.name : "Unknown",
+        message: error instanceof Error ? error.message : "Unknown error",
+        error,
+      });
+      return false;
+    }
+  }
+
   return (
     <AppLayout
       breadcrumbs={[
@@ -191,11 +241,11 @@ export default function AddChannelPage() {
                     htmlFor="channel"
                     className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   >
-                    Channel URL or Name
+                    Channel URL
                   </label>
                   <Input
                     id="channel"
-                    placeholder="Enter channel URL (e.g., https://youtube.com/@channelname) or just the channel name"
+                    placeholder="Enter full YouTube channel URL (e.g., https://youtube.com/@channelname)"
                     value={channelInput}
                     onChange={(e) => setChannelInput(e.target.value)}
                     disabled={isLoading}
@@ -206,13 +256,12 @@ export default function AddChannelPage() {
                     </p>
                   )}
                   <div className="text-sm text-muted-foreground">
-                    <p>You can enter either:</p>
-                    <ul className="list-disc list-inside mt-1 space-y-1">
-                      <li>
-                        Full channel URL (https://youtube.com/@channelname)
-                      </li>
-                      <li>Channel handle (@channelname)</li>
-                      <li>Channel name (without @)</li>
+                    <p>Please enter the full YouTube channel URL:</p>
+                    <ul className="list-disc list-inside mt-1">
+                      <li>https://youtube.com/@channelname</li>
+                      <li>https://www.youtube.com/c/channelname</li>
+                      <li>https://youtube.com/channel/UC...</li>
+                      <li>https://youtube.com/channelname</li>
                     </ul>
                   </div>
                 </div>
