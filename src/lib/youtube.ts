@@ -1,8 +1,10 @@
-export async function getChannelInfo(identifier: string, profileId: string) {
+import { ChannelFromXmlFeed } from "./types";
+
+export async function getChannelInfo(channelId: string, profileId: string) {
   try {
     const response = await fetch(
-      `/api/youtube/channel?identifier=${encodeURIComponent(
-        identifier
+      `/api/youtube/channel?channelId=${encodeURIComponent(
+        channelId
       )}&profileId=${profileId}`
     );
     const data = await response.json();
@@ -40,20 +42,10 @@ export async function resolveChannelId(
   }
 }
 
-interface Channel {
-  author: string;
-  uri: string;
-  title: string;
-  thumbnail: string;
-  viewCount: number;
-  lastVideoId: string;
-  lastVideoDate: string;
-  channelId: string;
-}
 
 export async function fetchChannelFeed(
   channelId: string
-): Promise<Channel> {
+): Promise<ChannelFromXmlFeed> {
   try {
     const response = await fetch(
       `/api/youtube/channel/resolve-channel-id-feed?channelId=${encodeURIComponent(
@@ -61,7 +53,6 @@ export async function fetchChannelFeed(
       )}`
     );
     const data = await response.json();
-    console.log("🚀 ~ fetchChannelFeed ~ data:", data);
 
     if (!data) {
       throw new Error(data.error || "Failed to fetch channel feed");

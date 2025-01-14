@@ -8,7 +8,7 @@ import { Youtube } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getChannelInfo,
+  getChannelInfo as startChannelInfoUpdate,
   resolveChannelId,
   fetchChannelFeed,
 } from "@/lib/youtube";
@@ -20,6 +20,7 @@ import {
 import { PLAN_LIMITS } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/use-profile";
+import { ChannelFromXmlFeed } from "@/lib/types";
 
 export default function AddChannelPage() {
   const { profile, isLoading: isLoadingProfile } = useProfile();
@@ -139,21 +140,6 @@ export default function AddChannelPage() {
         return;
       }
 
-      /*
-
-      {
-        author: 'BBC News Türkçe',
-        uri: 'https://www.youtube.com/channel/UCeMQiXmFNTtN3OHlNJxnnUw',
-        title: 'BBC News Türkçe',
-        thumbnail: 'https://i4.ytimg.com/vi/_NyfWqMKUKc/hqdefault.jpg',
-        viewCount: 61712,
-        lastVideoId: '_NyfWqMKUKc',
-        lastVideoDate: '2025-01-13T15:00:44+00:00',
-        channelId: 'UCeMQiXmFNTtN3OHlNJxnnUw'
-      }
-
-    */
-
       // Check if the channel is already linked to this profile
       const isLinked = await checkIfChannelIsLinked(profile.id, channelId);
       if (isLinked) {
@@ -163,18 +149,7 @@ export default function AddChannelPage() {
       }
 
       try {
-        interface Channel {
-          author: string;
-          uri: string;
-          title: string;
-          thumbnail: string;
-          viewCount: number;
-          lastVideoId: string;
-          lastVideoDate: string;
-          channelId: string;
-        }
-
-        const channel: Channel = await fetchChannelFeed(channelId);
+        const channel: ChannelFromXmlFeed = await fetchChannelFeed(channelId);
         console.log("🚀 ~ handleSubmit ~ channel:", channel);
 
         if (!channel) {
@@ -183,10 +158,14 @@ export default function AddChannelPage() {
           return;
         }
 
+        const uiAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+          channel.title
+        )}&background=random`;
+
         await addYouTubeChannel(profile.id, {
-          id: channel.channelId,
+          id: channelId,
           title: channel.title,
-          thumbnail: channel.thumbnail,
+          thumbnail: uiAvatarUrl,
           subscriberCount: 0,
           lastVideoId: channel.lastVideoId,
           lastVideoDate: channel.lastVideoDate,
@@ -201,9 +180,7 @@ export default function AddChannelPage() {
         }
       }
 
-      // Get channel info from YouTube
-      const channelInfo = await getChannelInfo(channelInput, profile.id);
-      console.log("🚀 ~ handleSubmit ~ channelInfo:", channelInfo);
+      await startChannelInfoUpdate(channelId, profile.id);
     } catch (err) {
       console.error("Error adding channel:", err);
       setError(

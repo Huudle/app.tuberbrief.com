@@ -95,7 +95,7 @@ export async function addYouTubeChannel(
   try {
     // First, upsert the YouTube channel
     console.log("🔄 Upserting YouTube channel...");
-    const { data: upsertData, error: channelError } = await supabase
+    const { error: channelError } = await supabase
       .from("youtube_channels")
       .upsert({
         id: channelData.id,
@@ -120,7 +120,7 @@ export async function addYouTubeChannel(
       });
       throw channelError;
     }
-    console.log("✅ Channel upsert successful:", upsertData);
+    console.log("✅ Channel upsert successful");
 
     if (!(await checkIfChannelIsLinked(profileId, channelData.id))) {
       console.log("🔗 Creating profile-channel association...");
@@ -267,8 +267,7 @@ export async function deleteProfileChannel(
 }
 
 export async function createOrUpdateChannel(
-  channelId: string,
-  identifier: string
+  channelId: string
 ): Promise<ChannelProcessingStatus> {
   // Check if channel already exists
   const { data: existingChannel } = await supabase
@@ -302,7 +301,7 @@ export async function createOrUpdateChannel(
     .insert([
       {
         id: channelId,
-        identifier,
+        identifier: null,
         processing_status: "pending",
         last_sync_at: new Date().toISOString(),
         sync_error: null,

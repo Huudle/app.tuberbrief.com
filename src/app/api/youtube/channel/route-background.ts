@@ -189,16 +189,12 @@ async function validateAndGetChannelUrl(
   }
 }
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const identifier = searchParams.get("identifier");
-  const profileId = searchParams.get("profileId");
+export async function GET(channelId: string, profileId: string) {
+  console.log("🎯 API Request  -", { channelId, profileId });
 
-  console.log("🎯 API Request  -", { identifier, profileId });
-
-  if (!identifier) {
-    console.log("❌ Error: Identifier is required");
-    return Response.json({ success: false, error: "Identifier is required" });
+  if (!channelId) {
+    console.log("❌ Error: ChannelId is required");
+    return Response.json({ success: false, error: "ChannelId is required" });
   }
 
   if (!profileId) {
@@ -207,23 +203,15 @@ export async function GET(request: Request) {
   }
 
   try {
-    const resolvedChannelId = await resolveChannelId(identifier);
-    if (!resolvedChannelId) {
-      return Response.json({
-        success: false,
-        error: "Could not resolve channel ID",
-      });
-    }
-
     // Create or update channel record
-    const result = await createOrUpdateChannel(resolvedChannelId, identifier);
+    const result = await createOrUpdateChannel(channelId);
 
     if (!result.success) {
       return Response.json(result);
     }
 
     // Start background processing
-    processChannel(resolvedChannelId, profileId).catch(console.error);
+    processChannel(channelId, profileId).catch(console.error);
 
     // Return immediately with channel ID
     return Response.json(result);

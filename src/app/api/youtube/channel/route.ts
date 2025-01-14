@@ -5,14 +5,14 @@ import { handleYouTubeAPI } from "./youtube-api";
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const identifier = searchParams.get("identifier");
+    const channelId = searchParams.get("channelId");
     const profileId = searchParams.get("profileId");
 
-    console.log("🎯 API Request -", { identifier, profileId });
+    console.log("🎯 API Request -", { channelId, profileId });
 
-    if (!identifier) {
-      console.log("❌ Error: Identifier is required");
-      return Response.json({ success: false, error: "Identifier is required" });
+    if (!channelId) {
+      console.log("❌ Error: ChannelId is required");
+      return Response.json({ success: false, error: "ChannelId is required" });
     }
 
     if (!profileId) {
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 
       // Use background processing by default
       console.log("🔄 Using background processing method...");
-      return getBackgroundData(request);
+      return getBackgroundData(channelId, profileId);
     } catch (error) {
       console.error("💥 Error in primary handler:", error);
       // Fall back to synchronous processing if background fails
