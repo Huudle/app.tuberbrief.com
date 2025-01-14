@@ -217,14 +217,29 @@ export default function ChannelsPage() {
           <Card key={channel.id} className="flex flex-col rounded-[5px]">
             <CardHeader className="flex flex-col space-y-4 p-4">
               <a
-                href={`https://youtube.com/watch?v=${channel.latestVideoId}`}
+                href={
+                  channel.latestVideoId
+                    ? `https://youtube.com/watch?v=${channel.latestVideoId}`
+                    : "#"
+                }
                 target="_blank"
                 rel="noopener noreferrer"
-                className="relative w-full aspect-video"
+                className={cn(
+                  "relative w-full aspect-video",
+                  !channel.latestVideoId && "cursor-default"
+                )}
               >
                 <Image
-                  src={`https://i.ytimg.com/vi/${channel.latestVideoId}/mqdefault.jpg`}
-                  alt={`Latest video from ${channel.name}`}
+                  src={
+                    channel.latestVideoId
+                      ? `https://i.ytimg.com/vi/${channel.latestVideoId}/mqdefault.jpg`
+                      : "/video-pending.jpg"
+                  }
+                  alt={`${
+                    channel.latestVideoId
+                      ? "Latest video from"
+                      : "No videos from"
+                  } ${channel.name}`}
                   fill
                   priority
                   className="rounded-[5px] object-cover hover:opacity-90 transition-opacity"

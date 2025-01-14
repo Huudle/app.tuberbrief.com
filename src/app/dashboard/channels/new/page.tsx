@@ -7,8 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Youtube } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getChannelInfo } from "@/lib/youtube";
-import { getProfileChannels } from "@/lib/supabase";
+import {
+  getChannelInfo,
+  resolveChannelId,
+  fetchChannelFeed,
+} from "@/lib/youtube";
+import {
+  addYouTubeChannel,
+  checkIfChannelIsLinked,
+  getProfileChannels,
+} from "@/lib/supabase";
 import { PLAN_LIMITS } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/use-profile";
@@ -111,37 +119,79 @@ export default function AddChannelPage() {
     setError(null);
 
     try {
-      // Validate URL if it looks like a URL
+      // First validate URL format
       const isValid = await isValidYouTubeUrl(channelInput);
       if (!isValid) {
         setError(
-          "Invalid YouTube channel URL. Please check the URL and try again."
+          "Invalid YouTube channel URL format. Please enter a valid URL."
         );
         setIsLoading(false);
         return;
       }
 
-      // Get channel info from YouTube
-      const channelInfo = await getChannelInfo(channelInput, profile.id);
-      console.log("🚀 ~ handleSubmit ~ channelInfo:", channelInfo);
-      /* if (!channelInfo) {
-        setError("Channel not found. Please check the URL or channel name.");
+      // Then resolve channel ID
+      const channelId = await resolveChannelId(channelInput);
+      if (!channelId) {
+        setError(
+          "Could not find this YouTube channel. Please check the URL and try again."
+        );
+        setIsLoading(false);
         return;
-      } */
+      }
 
-      // Save channel to database
+      /*
+
+      {
+        author: 'BBC News Türkçe',
+        uri: 'https://www.youtube.com/channel/UCeMQiXmFNTtN3OHlNJxnnUw',
+        title: 'BBC News Türkçe',
+        thumbnail: 'https://i4.ytimg.com/vi/_NyfWqMKUKc/hqdefault.jpg',
+        viewCount: 61712,
+        lastVideoId: '_NyfWqMKUKc',
+        lastVideoDate: '2025-01-13T15:00:44+00:00',
+        channelId: 'UCeMQiXmFNTtN3OHlNJxnnUw'
+      }
+
+    */
+
+      // Check if the channel is already linked to this profile
+      const isLinked = await checkIfChannelIsLinked(profile.id, channelId);
+      if (isLinked) {
+        setError("This channel is already linked to your account.");
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        /* console.log(" Calling addYouTubeChannel");
-        await addYouTubeChannel(profile.id, {
-          id: channelInfo.id,
-          title: channelInfo.title,
-          thumbnail: channelInfo.thumbnail,
-          subscriberCount: channelInfo.subscriberCount,
-          lastVideoId: channelInfo.lastVideoId || "",
-          lastVideoDate: channelInfo.lastVideoDate || new Date().toISOString(),
-          customUrl: channelInfo.customUrl || "",
-        }); */
+        interface Channel {
+          author: string;
+          uri: string;
+          title: string;
+          thumbnail: string;
+          viewCount: number;
+          lastVideoId: string;
+          lastVideoDate: string;
+          channelId: string;
+        }
 
+        const channel: Channel = await fetchChannelFeed(channelId);
+        console.log("🚀 ~ handleSubmit ~ channel:", channel);
+
+        if (!channel) {
+          setError("Failed to fetch channel feed");
+          setIsLoading(false);
+          return;
+        }
+
+        await addYouTubeChannel(profile.id, {
+          id: channel.channelId,
+          title: channel.title,
+          thumbnail: channel.thumbnail,
+          subscriberCount: 0,
+          lastVideoId: channel.lastVideoId,
+          lastVideoDate: channel.lastVideoDate,
+          customUrl: channel.uri,
+        });
         router.push("/dashboard/channels");
       } catch (err) {
         if (err instanceof Error && err.name === "DuplicateChannelError") {
@@ -150,6 +200,10 @@ export default function AddChannelPage() {
           throw err;
         }
       }
+
+      // Get channel info from YouTube
+      const channelInfo = await getChannelInfo(channelInput, profile.id);
+      console.log("🚀 ~ handleSubmit ~ channelInfo:", channelInfo);
     } catch (err) {
       console.error("Error adding channel:", err);
       setError(

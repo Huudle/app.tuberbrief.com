@@ -50,6 +50,32 @@ interface ChannelQueryResult {
   };
 }
 
+export async function checkIfChannelIsLinked(
+  profileId: string,
+  channelId: string
+): Promise<boolean> {
+  const { error: checkError } = await supabase
+    .from("profile_youtube_channels")
+    .select("*")
+    .eq("profile_id", profileId)
+    .eq("youtube_channel_id", channelId)
+    .single();
+
+  if (checkError?.code === "PGRST116") {
+    return false;
+  }
+
+  if (checkError) {
+    console.error(
+      "❌ Error checking if channel is linked:",
+      (checkError as Error).message
+    );
+    throw checkError;
+  }
+
+  return true;
+}
+
 export async function addYouTubeChannel(
   profileId: string,
   channelData: {
@@ -67,30 +93,6 @@ export async function addYouTubeChannel(
   console.log("📦 Channel Data:", channelData);
 
   try {
-    // Check if the channel is already linked to this profile
-    console.log("🔍 Checking for existing channel link...");
-    const { data: existingLink, error: checkError } = await supabase
-      .from("profile_youtube_channels")
-      .select("*")
-      .eq("profile_id", profileId)
-      .eq("youtube_channel_id", channelData.id)
-      .single();
-
-    if (checkError && checkError.code !== "PGRST116") {
-      // PGRST116 is "not found" error
-      console.error("❌ Error checking for existing channel:", checkError);
-      throw checkError;
-    }
-
-    if (existingLink) {
-      console.log("⚠️ Channel already exists for this profile");
-      const error = new Error(
-        `You've already added the channel "${channelData.title}"`
-      );
-      error.name = "DuplicateChannelError";
-      throw error;
-    }
-
     // First, upsert the YouTube channel
     console.log("🔄 Upserting YouTube channel...");
     const { data: upsertData, error: channelError } = await supabase
@@ -120,26 +122,27 @@ export async function addYouTubeChannel(
     }
     console.log("✅ Channel upsert successful:", upsertData);
 
-    // Then, create the profile-channel association
-    console.log("🔗 Creating profile-channel association...");
-    const { data: linkData, error: linkError } = await supabase
-      .from("profile_youtube_channels")
-      .insert({
-        profile_id: profileId,
-        youtube_channel_id: channelData.id,
-      });
+    if (!(await checkIfChannelIsLinked(profileId, channelData.id))) {
+      console.log("🔗 Creating profile-channel association...");
+      const { data: linkData, error: linkError } = await supabase
+        .from("profile_youtube_channels")
+        .insert({
+          profile_id: profileId,
+          youtube_channel_id: channelData.id,
+        });
 
-    if (linkError) {
-      console.error("❌ Error linking profile to channel:", linkError);
-      console.error("Details:", {
-        code: linkError.code,
-        message: linkError.message,
-        details: linkError.details,
-        hint: linkError.hint,
-      });
-      throw linkError;
+      if (linkError) {
+        console.error("❌ Error linking profile to channel:", linkError);
+        console.error("Details:", {
+          code: linkError.code,
+          message: linkError.message,
+          details: linkError.details,
+          hint: linkError.hint,
+        });
+        throw linkError;
+      }
+      console.log("✅ Profile-channel link successful:", linkData);
     }
-    console.log("✅ Profile-channel link successful:", linkData);
 
     // Return the channel data
     console.log("📡 Fetching final channel data...");
