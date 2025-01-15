@@ -39,9 +39,11 @@ export async function GET(channelId: string, profileId: string) {
 async function processChannel(channelId: string, profileId: string) {
   const startTime = performance.now();
   console.log("🎬 Starting channel processing for:", channelId);
+  console.log("⚙️ Parameters:", { channelId, profileId });
 
   try {
     // Get channel details
+    console.log("📡 Fetching channel details from YouTube API...");
     const channelResponse = await axios.get(`${YOUTUBE_API_BASE}/channels`, {
       params: {
         part: "snippet,statistics",
@@ -49,15 +51,29 @@ async function processChannel(channelId: string, profileId: string) {
         key: env.YOUTUBE_API_KEY,
       },
     });
+    console.log("📊 Channel API response status:", channelResponse.status);
+    console.log(
+      "📊 Channel data:",
+      JSON.stringify(channelResponse.data, null, 2)
+    );
 
     const channelData = channelResponse.data.items[0];
+    if (!channelData) {
+      throw new Error("No channel data found");
+    }
+    console.log("📊 Extracted channel data:", {
+      title: channelData.snippet.title,
+      subscribers: channelData.statistics.subscriberCount,
+      customUrl: channelData.snippet.customUrl,
+    });
     console.log(
-      "📊 Channel data fetched:",
+      "⏱️ Channel data fetched:",
       performance.now() - startTime,
       "ms"
     );
 
     // Get latest video
+    console.log("📡 Fetching latest video data...");
     const videosResponse = await axios.get(`${YOUTUBE_API_BASE}/search`, {
       params: {
         part: "snippet",
@@ -68,16 +84,26 @@ async function processChannel(channelId: string, profileId: string) {
         key: env.YOUTUBE_API_KEY,
       },
     });
-
-    const latestVideo = videosResponse.data.items[0];
+    console.log("🎥 Videos API response status:", videosResponse.status);
     console.log(
-      "🎥 Latest video fetched:",
-      performance.now() - startTime,
-      "ms"
+      "🎥 Videos data:",
+      JSON.stringify(videosResponse.data, null, 2)
     );
 
+    const latestVideo = videosResponse.data.items[0];
+    if (latestVideo) {
+      console.log("🎥 Latest video details:", {
+        videoId: latestVideo.id?.videoId,
+        title: latestVideo.snippet?.title,
+        publishedAt: latestVideo.snippet?.publishedAt,
+      });
+    } else {
+      console.log("⚠️ No videos found for channel");
+    }
+    console.log("⏱️ Video data fetched:", performance.now() - startTime, "ms");
+
     // Prepare channel data
-    await addYouTubeChannel(profileId, {
+    const channelDataToSave = {
       id: channelId,
       title: channelData.snippet.title,
       thumbnail: channelData.snippet.thumbnails.high.url,
@@ -88,20 +114,53 @@ async function processChannel(channelId: string, profileId: string) {
       customUrl:
         channelData.snippet.customUrl ||
         `@${channelData.snippet.title.replace(/\s+/g, "")}`,
-    });
+    };
+    console.log("📦 Prepared data for saving:", channelDataToSave);
 
-    console.log("💾 Channel data saved:", performance.now() - startTime, "ms");
-    await updateChannelProcessingStatus(channelId, "completed");
-
-    const endTime = performance.now();
+    // Save to database
+    console.log("💾 Saving channel data to database...");
+    await addYouTubeChannel(profileId, channelDataToSave);
+    console.log("💾 Channel data saved successfully");
     console.log(
-      "✅ Channel processing completed in:",
-      endTime - startTime,
+      "⏱️ Database operation completed:",
+      performance.now() - startTime,
       "ms"
     );
+
+    // Update status
+    console.log("📝 Updating processing status...");
+    await updateChannelProcessingStatus(channelId, "completed");
+    console.log("✅ Status updated to completed");
+
+    const endTime = performance.now();
+    const totalTime = endTime - startTime;
+    console.log("🏁 Channel processing completed successfully");
+    console.log("⏱️ Total processing time:", totalTime, "ms");
+    console.log("📊 Performance breakdown:", {
+      totalTimeMs: totalTime,
+      timeStamps: {
+        channelDataFetch: performance.now() - startTime,
+        videoDataFetch: performance.now() - startTime,
+        databaseOperation: performance.now() - startTime,
+      },
+    });
   } catch (error) {
     const errorTime = performance.now();
-    console.error("💥 Error processing channel:", error);
+    console.error("💥 Error processing channel");
+    console.error("❌ Error details:", {
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined,
+      timeToError: errorTime - startTime,
+    });
+
+    if (axios.isAxiosError(error)) {
+      console.error("🌐 API Error Details:", {
+        response: error.response?.data,
+        status: error.response?.status,
+        headers: error.response?.headers,
+      });
+    }
+
     console.log("❌ Failed after:", errorTime - startTime, "ms");
 
     await updateChannelProcessingStatus(
