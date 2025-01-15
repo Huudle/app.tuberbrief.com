@@ -1,4 +1,6 @@
 import { env } from "@/env.mjs";
+import https from "https";
+
 
 import axios from "axios";
 import {
@@ -8,6 +10,42 @@ import {
 } from "@/lib/supabase";
 
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
+
+const axiosConfig = {
+  timeout: 10000, // 10 seconds
+  retry: 3,
+  retryDelay: 1000,
+  headers: {
+    'Accept': 'application/json',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+  },
+  httpsAgent: new https.Agent({
+    rejectUnauthorized: true,
+    keepAlive: true,
+    timeout: 10000,
+  })
+};
+
+// Create an axios instance with retry logic
+const axiosInstance = axios.create(axiosConfig);
+
+// Add retry interceptor
+axiosInstance.interceptors.response.use(undefined, async (err) => {
+  const { config } = err;
+  if (!config || !config.retry) return Promise.reject(err);
+
+  config.retryCount = config.retryCount ?? 0;
+  if (config.retryCount >= config.retry) {
+    return Promise.reject(err);
+  }
+
+  config.retryCount += 1;
+  console.log(`🔄 Retry attempt ${config.retryCount} of ${config.retry}`);
+  
+  const delayMs = config.retryDelay * config.retryCount;
+  await new Promise(resolve => setTimeout(resolve, delayMs));
+  return axiosInstance(config);
+});
 
 export async function GET(channelId: string, profileId: string) {
   console.log("🎯 API Request  -", { channelId, profileId });
@@ -44,7 +82,7 @@ async function processChannel(channelId: string, profileId: string) {
   try {
     // Get channel details
     console.log("📡 Fetching channel details from YouTube API...");
-    const channelResponse = await axios.get(`${YOUTUBE_API_BASE}/channels`, {
+    const channelResponse = await axiosInstance.get(`${YOUTUBE_API_BASE}/channels`, {
       params: {
         part: "snippet,statistics",
         id: channelId,
@@ -74,7 +112,7 @@ async function processChannel(channelId: string, profileId: string) {
 
     // Get latest video
     console.log("📡 Fetching latest video data...");
-    const videosResponse = await axios.get(`${YOUTUBE_API_BASE}/search`, {
+    const videosResponse = await axiosInstance.get(`${YOUTUBE_API_BASE}/search`, {
       params: {
         part: "snippet",
         channelId: channelId,
