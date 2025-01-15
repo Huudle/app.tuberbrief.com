@@ -15,7 +15,6 @@ async function fetchChannelFeed(channelName: string) {
     `https://www.youtube.com/feeds/videos.xml?user=${channelNameWithoutAt}`
   );
   const data = await response.text();
-  console.log("🚀 ~ fetchChannelFeed ~ data:", data);
 
   const parser = new xml2js.Parser();
   const result = await parser.parseStringPromise(data);

@@ -1,5 +1,5 @@
 import { GET as getFallbackData } from "./route-fallback";
-import { GET as getBackgroundData } from "./route-background";
+import { GET as getBackgroundData } from "./route-background-axios";
 import { handleYouTubeAPI } from "./youtube-api";
 
 export async function GET(request: Request) {

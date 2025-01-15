@@ -8,7 +8,7 @@ import { Youtube } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  getChannelInfo as startChannelInfoUpdate,
+   startChannelInfoUpdate,
   /*   resolveChannelId,
    */ fetchChannelFeed,
 } from "@/lib/youtube";

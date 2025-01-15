@@ -1,6 +1,6 @@
 import { ChannelFromXmlFeed } from "./types";
 
-export async function getChannelInfo(channelId: string, profileId: string) {
+export async function startChannelInfoUpdate(channelId: string, profileId: string) {
   try {
     const response = await fetch(
       `/api/youtube/channel?channelId=${encodeURIComponent(
@@ -42,7 +42,6 @@ export async function resolveChannelId(
   }
 }
 
-
 export async function fetchChannelFeed(
   channelName: string
 ): Promise<ChannelFromXmlFeed> {
@@ -53,7 +52,6 @@ export async function fetchChannelFeed(
       )}`
     );
     const data = await response.json();
-    console.log("🚀 ~ fetchChannelFeed ~ data:", data);
 
     if (!data) {
       throw new Error(data.error || "Failed to fetch channel feed");

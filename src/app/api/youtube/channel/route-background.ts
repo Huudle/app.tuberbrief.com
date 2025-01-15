@@ -159,7 +159,11 @@ async function processChannel(channelId: string, profileId: string) {
         latestVideoDateText,
       };
     });
-    console.log("📊 Channel data extracted:", performance.now() - startTime, "ms");
+    console.log(
+      "📊 Channel data extracted:",
+      performance.now() - startTime,
+      "ms"
+    );
 
     // Parse the relative time outside of page.evaluate()
     const lastVideoDate = channelData.latestVideoDateText
@@ -181,8 +185,11 @@ async function processChannel(channelId: string, profileId: string) {
     // Update processing status
     await updateChannelProcessingStatus(channelId, "completed");
     const endTime = performance.now();
-    console.log("✅ Channel processing completed in:", endTime - startTime, "ms");
-
+    console.log(
+      "✅ Channel processing completed in:",
+      endTime - startTime,
+      "ms"
+    );
   } catch (error) {
     const errorTime = performance.now();
     console.error("💥 Error processing channel:", error);
