@@ -8,7 +8,6 @@ export async function GET(request: Request) {
     const channelId = searchParams.get("channelId");
     const profileId = searchParams.get("profileId");
 
-    console.log("🎯 API Request -", { channelId, profileId });
 
     if (!channelId) {
       console.log("❌ Error: ChannelId is required");

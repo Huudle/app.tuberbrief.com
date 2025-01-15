@@ -32,7 +32,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const identifier = searchParams.get("identifier");
 
-  console.log("🎯 API Request - identifier:", identifier);
 
   if (!identifier) {
     console.log("❌ Error: Identifier is required");

@@ -34,7 +34,6 @@ const getBrowser = async () => {
 };
 
 export async function GET(channelId: string, profileId: string) {
-  console.log("🎯 API Request  -", { channelId, profileId });
 
   if (!channelId) {
     console.log("❌ Error: ChannelId is required");
