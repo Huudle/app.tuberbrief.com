@@ -9,8 +9,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   getChannelInfo as startChannelInfoUpdate,
-  resolveChannelId,
-  fetchChannelFeed,
+  /*   resolveChannelId,
+   */ fetchChannelFeed,
 } from "@/lib/youtube";
 import {
   addYouTubeChannel,
@@ -99,12 +99,21 @@ export default function AddChannelPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // 1. Add input trimming
+    const trimmedInput = channelInput.trim();
+    if (!trimmedInput) {
+      setError("Please enter a YouTube channel URL");
+      return;
+    }
+
+    // 2. Profile check (existing)
     if (!profile) {
       setError("You must be logged in to add channels");
       return;
     }
 
-    // Check plan limits first
+    // 3. Plan limits check (existing)
     if (hasReachedLimit) {
       setError(
         `You've reached the limit of ${
@@ -120,8 +129,17 @@ export default function AddChannelPage() {
     setError(null);
 
     try {
-      // First validate URL format
-      const isValid = await isValidYouTubeUrl(channelInput);
+      // 4. Basic URL validation before processing
+      if (!trimmedInput.startsWith("http")) {
+        setError(
+          "Please enter a complete URL starting with http:// or https://"
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      // 5. URL validation
+      const isValid = await isValidYouTubeUrl(trimmedInput);
       if (!isValid) {
         setError(
           "Invalid YouTube channel URL format. Please enter a valid URL."
@@ -130,27 +148,46 @@ export default function AddChannelPage() {
         return;
       }
 
-      // Then resolve channel ID
-      const channelId = await resolveChannelId(channelInput);
-      if (!channelId) {
+      // 6. Extract channel name with error boundary
+      const url = new URL(trimmedInput);
+      let channelName: string | null = null;
+
+      try {
+        if (url.pathname.startsWith("/@")) {
+          channelName = url.pathname.slice(2);
+        } else if (url.pathname.startsWith("/c/")) {
+          channelName = url.pathname.slice(3);
+        } else if (url.pathname.startsWith("/channel/")) {
+          channelName = url.pathname.slice(9);
+        } else {
+          channelName = url.pathname.slice(1);
+        }
+
+        // Remove trailing slashes and query parameters
+        channelName = channelName.split("?")[0].split("/")[0];
+      } catch (err) {
+        console.error("Error parsing URL:", err);
+        setError("Invalid URL format. Please check the URL and try again.");
+        setIsLoading(false);
+        return;
+      }
+
+      if (!channelName) {
         setError(
-          "Could not find this YouTube channel. Please check the URL and try again."
+          "Could not extract channel name from URL. Please check the format."
         );
         setIsLoading(false);
         return;
       }
 
-      // Check if the channel is already linked to this profile
-      const isLinked = await checkIfChannelIsLinked(profile.id, channelId);
-      if (isLinked) {
-        setError("This channel is already linked to your account.");
-        setIsLoading(false);
-        return;
-      }
-
+      // 7. Channel fetch with timeout
       try {
-        const channel: ChannelFromXmlFeed = await fetchChannelFeed(channelId);
-        console.log("🚀 ~ handleSubmit ~ channel:", channel);
+        const channel: ChannelFromXmlFeed = (await Promise.race([
+          fetchChannelFeed(channelName),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Request timeout")), 15000)
+          ),
+        ])) as ChannelFromXmlFeed;
 
         if (!channel) {
           setError("Failed to fetch channel feed");
@@ -158,12 +195,24 @@ export default function AddChannelPage() {
           return;
         }
 
+        // 8. Duplicate check (existing)
+        const isLinked = await checkIfChannelIsLinked(
+          profile.id,
+          channel.channelId
+        );
+        if (isLinked) {
+          setError("This channel is already linked to your account.");
+          setIsLoading(false);
+          return;
+        }
+
+        // 9. Add channel with proper error handling
         const uiAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
           channel.title
         )}&background=random`;
 
         await addYouTubeChannel(profile.id, {
-          id: channelId,
+          id: channel.channelId,
           title: channel.title,
           thumbnail: uiAvatarUrl,
           subscriberCount: 0,
@@ -171,16 +220,22 @@ export default function AddChannelPage() {
           lastVideoDate: channel.lastVideoDate,
           customUrl: channel.uri,
         });
+
+        // 10. Start background update after successful add
+        await startChannelInfoUpdate(channel.channelId, profile.id);
+
+        // 11. Navigate only after all operations are complete
         router.push("/dashboard/channels");
       } catch (err) {
         if (err instanceof Error && err.name === "DuplicateChannelError") {
           setError(err.message);
+        } else if (err instanceof Error && err.message === "Request timeout") {
+          setError("Request timed out. Please try again.");
         } else {
-          throw err;
+          console.error("Channel fetch error:", err);
+          setError("Failed to fetch channel information. Please try again.");
         }
       }
-
-      await startChannelInfoUpdate(channelId, profile.id);
     } catch (err) {
       console.error("Error adding channel:", err);
       setError(

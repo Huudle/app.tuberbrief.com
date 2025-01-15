@@ -1,10 +1,21 @@
 import xml2js from "xml2js";
 
-async function fetchChannelFeed(channelId: string) {
+async function fetchChannelFeed(channelName: string) {
+  /*
+  Youtube Feeds:
+  https://www.youtube.com/feeds/videos.xml?channel_id=CHANNEL_ID
+  https://www.youtube.com/feeds/videos.xml?user=USER_NAME
+  https://www.youtube.com/feeds/videos.xml?playlist_id=PLAYLIST_UPLOADS
+*/
+
+  // Remove @ sign from the channel name
+  const channelNameWithoutAt = channelName.replace("@", "");
+
   const response = await fetch(
-    `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`
+    `https://www.youtube.com/feeds/videos.xml?user=${channelNameWithoutAt}`
   );
   const data = await response.text();
+  console.log("🚀 ~ fetchChannelFeed ~ data:", data);
 
   const parser = new xml2js.Parser();
   const result = await parser.parseStringPromise(data);
@@ -29,6 +40,11 @@ async function fetchChannelFeed(channelId: string) {
   const lastVideoId = latestEntry?.["yt:videoId"]?.[0];
   const lastVideoDate = latestEntry?.published?.[0];
 
+  // "https://www.youtube.com/channel/UCW5wxEjGHWNyatgZe-PU_tA"
+  // This is uri and the id is the last part of the url which is UCW5wxEjGHWNyatgZe-PU_tA
+  const channelIdOnly = uri.split("/").pop();
+  console.log("🚀 ~ fetchChannelFeed ~ channelIdOnly:", channelIdOnly);
+
   return {
     success: true,
     data: {
@@ -39,21 +55,21 @@ async function fetchChannelFeed(channelId: string) {
       viewCount: parseInt(viewCount, 10),
       lastVideoId,
       lastVideoDate,
-      channelId,
+      channelId: channelIdOnly,
     },
   };
 }
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const channelId = searchParams.get("channelId");
+  const channelName = searchParams.get("channelName");
 
-  if (!channelId) {
-    return Response.json({ success: false, error: "Channel ID is required" });
+  if (!channelName) {
+    return Response.json({ success: false, error: "Channel name is required" });
   }
 
   try {
-    const result = await fetchChannelFeed(channelId);
+    const result = await fetchChannelFeed(channelName);
     return Response.json(result.data);
   } catch (error) {
     console.error("Error fetching channel feed:", error);

@@ -44,15 +44,16 @@ export async function resolveChannelId(
 
 
 export async function fetchChannelFeed(
-  channelId: string
+  channelName: string
 ): Promise<ChannelFromXmlFeed> {
   try {
     const response = await fetch(
-      `/api/youtube/channel/resolve-channel-id-feed?channelId=${encodeURIComponent(
-        channelId
+      `/api/youtube/channel/resolve-channel-id-feed?channelName=${encodeURIComponent(
+        channelName
       )}`
     );
     const data = await response.json();
+    console.log("🚀 ~ fetchChannelFeed ~ data:", data);
 
     if (!data) {
       throw new Error(data.error || "Failed to fetch channel feed");
