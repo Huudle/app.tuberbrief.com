@@ -21,3 +21,40 @@ export interface ChannelFromXmlFeed {
   lastVideoDate: string;
   channelId: string;
 }
+
+export interface PubSubHubbubSubscriptionRequest {
+  callbackUrl: string;
+  topicUrl: string;
+  mode?: "subscribe" | "unsubscribe";
+  verifyToken?: string;
+  secret?: string;
+  leaseSeconds?: number;
+}
+
+export interface PubSubHubbubNotification {
+  feed: {
+    entry: Array<{
+      id: Array<string>;
+      title: Array<string>;
+      link: Array<string>;
+      published: Array<string>;
+      updated: Array<string>;
+      author: Array<{
+        name: Array<string>;
+        uri: Array<string>;
+      }>;
+      "yt:videoId": Array<string>;
+      "yt:channelId": Array<string>;
+    }>;
+  };
+}
+
+export interface YouTubeQueueMessage {
+  channelId: string;
+  videoId: string;
+  title: string;
+  authorName: string;
+  published: string;
+  updated: string;
+  timestamp?: string;
+}
