@@ -1,4 +1,3 @@
-import { env } from "@/env.mjs";
 import https from "https";
 
 
@@ -86,7 +85,7 @@ async function processChannel(channelId: string, profileId: string) {
       params: {
         part: "snippet,statistics",
         id: channelId,
-        key: env.YOUTUBE_API_KEY,
+        key: process.env.YOUTUBE_API_KEY,
       },
     });
     console.log("📊 Channel API response status:", channelResponse.status);
@@ -119,7 +118,7 @@ async function processChannel(channelId: string, profileId: string) {
         order: "date",
         maxResults: 1,
         type: "video",
-        key: env.YOUTUBE_API_KEY,
+        key: process.env.YOUTUBE_API_KEY,
       },
     });
     console.log("🎥 Videos API response status:", videosResponse.status);

@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { env } from "@/env.mjs";
 
 interface Thumbnail {
   url: string;
@@ -49,7 +48,7 @@ export async function handleYouTubeAPI(request: Request) {
   // Get channel details
   console.log("📡 Fetching channel details...");
   const channelResponse = await fetch(
-    `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${env.YOUTUBE_API_KEY}`
+    `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelId}&key=${process.env.YOUTUBE_API_KEY}`
   );
   const channelData = await channelResponse.json();
 
@@ -64,7 +63,7 @@ export async function handleYouTubeAPI(request: Request) {
   // Get latest video (excluding Shorts)
   console.log("📡 Fetching latest videos...");
   const videosResponse = await fetch(
-    `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&order=date&maxResults=10&type=video&key=${env.YOUTUBE_API_KEY}`
+    `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&order=date&maxResults=10&type=video&key=${process.env.YOUTUBE_API_KEY}`
   );
   const videosData = await videosResponse.json();
 
@@ -75,7 +74,7 @@ export async function handleYouTubeAPI(request: Request) {
     ?.map((item: any) => item.id.videoId)
     .join(",");
   const videoDetailsResponse = await fetch(
-    `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet&id=${videoIds}&key=${env.YOUTUBE_API_KEY}`
+    `https://www.googleapis.com/youtube/v3/videos?part=contentDetails,snippet&id=${videoIds}&key=${process.env.YOUTUBE_API_KEY}`
   );
   const videoDetails = await videoDetailsResponse.json();
 
@@ -159,7 +158,7 @@ async function getChannelIdFromUsername(
 ): Promise<string | null> {
   try {
     console.log("📡 Fetching channel ID for username:", username);
-    const url = `https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${username}&key=${env.YOUTUBE_API_KEY}`;
+    const url = `https://www.googleapis.com/youtube/v3/channels?part=id&forUsername=${username}&key=${process.env.YOUTUBE_API_KEY}`;
     console.log("🔗 API URL:", url);
 
     const response = await fetch(url);
@@ -191,7 +190,7 @@ async function searchChannelByUsername(
 ): Promise<string | null> {
   try {
     console.log("🔍 Trying search fallback for:", username);
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${username}&type=channel&key=${env.YOUTUBE_API_KEY}`;
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${username}&type=channel&key=${process.env.YOUTUBE_API_KEY}`;
     console.log("🔗 Search API URL:", url);
 
     const response = await fetch(url);
@@ -268,7 +267,7 @@ async function getChannelIdFromCustomUrl(
 ): Promise<string | null> {
   try {
     const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=id&q=${customUrl}&type=channel&key=${env.YOUTUBE_API_KEY}`
+      `https://www.googleapis.com/youtube/v3/search?part=id&q=${customUrl}&type=channel&key=${process.env.YOUTUBE_API_KEY}`
     );
     const data = await response.json();
     return data.items?.[0]?.id.channelId || null;

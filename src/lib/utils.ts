@@ -1,4 +1,3 @@
-import { env } from "@/env.mjs";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -120,7 +119,7 @@ export function getAppUrl(): string {
   if (process.env.NODE_ENV === "development") {
     return "http://localhost:3000";
   }
-  return env.NEXT_PUBLIC_APP_URL;
+  return process.env.NEXT_PUBLIC_APP_URL!;
 }
 
 /**
