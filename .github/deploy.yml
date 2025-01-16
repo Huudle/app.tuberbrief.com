@@ -1,0 +1,47 @@
+name: CI/CD for Next.js App
+
+on:
+  push:
+    branches:
+      - main  # Trigger on pushes to the main branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the code
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      # Step 2: Set up Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '22'  # Use a compatible Node.js version
+          cache: 'yarn'
+
+      # Step 3: Install dependencies
+      - name: Install Dependencies
+        run: yarn install
+
+      # Step 4: Build the Next.js app
+      - name: Build Next.js App
+        run: yarn build
+
+      # Step 5: Deploy to Server
+      - name: Deploy to Server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_IP: ${{ secrets.SERVER_IP }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $SERVER_USER@$SERVER_IP "
+            cd /var/www/flow-fusion &&
+            git pull &&
+            yarn install &&
+            yarn build &&
+            pm2 restart all
+          "
