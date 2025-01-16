@@ -207,7 +207,3 @@ async function processChannel(channelId: string, profileId: string) {
     );
   }
 }
-
-export const config = {
-  type: "experimental-background",
-};
