@@ -3,7 +3,7 @@ name: CI/CD for Next.js App
 on:
   push:
     branches:
-      - main  # Trigger on pushes to the main branch
+      - master  # Trigger on pushes to the main branch
 
 jobs:
   build-and-deploy:
@@ -12,13 +12,13 @@ jobs:
     steps:
       # Step 1: Check out the code
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Step 2: Set up Node.js
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '22'  # Use a compatible Node.js version
+          node-version: '20'  # Use a compatible Node.js version
           cache: 'yarn'
 
       # Step 3: Install dependencies
@@ -40,8 +40,9 @@ jobs:
           chmod 600 private_key.pem
           ssh -o StrictHostKeyChecking=no -i private_key.pem $SERVER_USER@$SERVER_IP "
             cd /var/www/flow-fusion &&
+            sudo cp -r . ../backup-$(date +%Y%m%d%H%M%S) &&
             git pull &&
-            yarn install &&
-            yarn build &&
+            npm install &&
+            npm run build &&
             pm2 restart all
           "
