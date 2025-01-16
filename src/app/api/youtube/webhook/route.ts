@@ -1,17 +1,10 @@
 import xml2js from "xml2js";
 import { PubSubHubbubNotification } from "@/lib/types";
+import { buildUrl } from "@/lib/utils";
 
 // Helper function to make internal API calls
 async function internalFetch(path: string, options: RequestInit) {
-  // For local development
-  if (process.env.NODE_ENV === "development") {
-    const url = `http://localhost:3000${path}`;
-    console.log("🔗 Internal API call to:", url);
-    return fetch(url, options);
-  }
-
-  // For production
-  const url = `${process.env.NEXT_PUBLIC_APP_URL}${path}`;
+  const url = buildUrl(path);
   console.log("🔗 Internal API call to:", url);
   return fetch(url, options);
 }
