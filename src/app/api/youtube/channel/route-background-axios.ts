@@ -11,9 +11,9 @@ import {
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 
 const axiosConfig = {
-  timeout: 5000, // 5 seconds
-  retry: 4,
-  retryDelay: 1000,
+  timeout: 3000, // 5 seconds
+  retry: 5,
+  retryDelay: 2000,
   headers: {
     'Accept': 'application/json',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
