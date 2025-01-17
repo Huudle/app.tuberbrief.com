@@ -20,34 +20,12 @@ export async function startChannelInfoUpdate(channelId: string, profileId: strin
   }
 }
 
-export async function resolveChannelId(
-  identifier: string
-): Promise<string | null> {
-  try {
-    const response = await fetch(
-      `/api/youtube/channel/resolve-channel-id?identifier=${encodeURIComponent(
-        identifier
-      )}`
-    );
-    const data = await response.json();
-
-    if (!data.success) {
-      return null;
-    }
-
-    return data.channelId;
-  } catch (error) {
-    console.error("Error resolving channel ID:", error);
-    return null;
-  }
-}
-
 export async function fetchChannelFeed(
   channelName: string
 ): Promise<ChannelFromXmlFeed> {
   try {
     const response = await fetch(
-      `/api/youtube/channel/resolve-channel-id-feed?channelName=${encodeURIComponent(
+      `/api/youtube/channel/resolve-id?channelName=${encodeURIComponent(
         channelName
       )}`
     );
