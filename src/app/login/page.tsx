@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/lib/supabase";
+import { supabaseAnon } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
@@ -34,7 +34,7 @@ function LoginForm() {
     try {
       console.log("Attempting to sign in with Supabase...");
       const { data, error: signInError } =
-        await supabase.auth.signInWithPassword({
+        await supabaseAnon.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
         });

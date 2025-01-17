@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAnon } from "@/lib/supabase";
 
 export async function middleware(request: NextRequest) {
-
   try {
     // Get the session cookie
     const authCookie = request.cookies.get("flow-fusion-auth");
@@ -17,7 +16,7 @@ export async function middleware(request: NextRequest) {
     const {
       data: { session },
       error: sessionError,
-    } = await supabase.auth.getSession();
+    } = await supabaseAnon.auth.getSession();
 
     if (sessionError) {
       throw sessionError;

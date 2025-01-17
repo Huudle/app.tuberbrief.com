@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAnon } from "@/lib/supabase";
 
 export async function POST(request: Request) {
   try {
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
     }
 
     if (event === "SIGNED_IN" && session) {
-      await supabase.auth.setSession(session);
+      await supabaseAnon.auth.setSession(session);
 
       // Create response with cookie
       const response = NextResponse.json({
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     }
 
     if (event === "SIGNED_OUT") {
-      await supabase.auth.signOut();
+      await supabaseAnon.auth.signOut();
 
       const response = NextResponse.json({
         message: "Session cleared successfully",

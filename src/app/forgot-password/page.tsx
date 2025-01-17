@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/lib/supabase";
+import { supabaseAnon } from "@/lib/supabase";
 import { useState } from "react";
 
 export default function ForgotPasswordPage() {
@@ -33,12 +33,10 @@ export default function ForgotPasswordPage() {
     }
 
     try {
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-        email,
-        {
+      const { error: resetError } =
+        await supabaseAnon.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
-        }
-      );
+        });
 
       if (resetError) throw resetError;
 

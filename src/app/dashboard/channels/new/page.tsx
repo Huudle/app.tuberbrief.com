@@ -7,20 +7,29 @@ import { Input } from "@/components/ui/input";
 import { Youtube } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-   startChannelInfoUpdate,
-  /*   resolveChannelId,
-   */ fetchChannelFeed,
-} from "@/lib/youtube";
+import { startChannelInfoUpdate, fetchChannelFeed } from "@/lib/youtube";
 import {
   addYouTubeChannel,
   checkIfChannelIsLinked,
   getProfileChannels,
+  removeYouTubeChannel,
 } from "@/lib/supabase";
 import { PLAN_LIMITS } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/use-profile";
 import { ChannelFromXmlFeed } from "@/lib/types";
+import { managePubSubHubbub } from "@/lib/pubsub";
+
+async function subscribeToPubSubHubbub(channelId: string): Promise<void> {
+  console.log("🔔 Subscribing to PubSubHubbub");
+  const ngrokUrl =
+    "https://91e4-2a02-4e0-2d19-94c-a50c-1355-d6b7-1ee3.ngrok-free.app";
+  await managePubSubHubbub({
+    channelId,
+    mode: "subscribe",
+    ngrokUrl,
+  });
+}
 
 export default function AddChannelPage() {
   const { profile, isLoading: isLoadingProfile } = useProfile();
@@ -211,21 +220,47 @@ export default function AddChannelPage() {
           channel.title
         )}&background=random`;
 
-        await addYouTubeChannel(profile.id, {
-          id: channel.channelId,
-          title: channel.title,
-          thumbnail: uiAvatarUrl,
-          subscriberCount: 0,
-          lastVideoId: channel.lastVideoId,
-          lastVideoDate: channel.lastVideoDate,
-          customUrl: channel.uri,
-        });
+        // Wrap critical operations in a transaction-like flow
+        try {
+          // 9. Add channel to database
+          await addYouTubeChannel(profile.id, {
+            id: channel.channelId,
+            title: channel.title,
+            thumbnail: uiAvatarUrl,
+            subscriberCount: 0,
+            lastVideoId: channel.lastVideoId,
+            lastVideoDate: channel.lastVideoDate,
+            customUrl: channel.uri,
+          });
 
-        // 10. Start background update after successful add
-        await startChannelInfoUpdate(channel.channelId, profile.id);
+          // 10. Subscribe to PubSubHubbub notifications (required)
+          await subscribeToPubSubHubbub(channel.channelId);
 
-        // 11. Navigate only after all operations are complete
-        router.push("/dashboard/channels");
+          // 11. Start background update
+          await startChannelInfoUpdate(channel.channelId, profile.id);
+
+          // 12. Navigate only after all operations are complete
+          router.push("/dashboard/channels");
+        } catch (err) {
+          // If PubSubHubbub subscription fails, we should:
+          // 1. Log the error
+          console.error("Critical error during channel setup:", err);
+
+          // 2. Try to cleanup the channel from database
+          try {
+            await removeYouTubeChannel(profile.id, channel.channelId);
+          } catch (cleanupErr) {
+            console.error(
+              "Failed to cleanup after subscription error:",
+              cleanupErr
+            );
+          }
+
+          // 3. Show error to user
+          throw new Error(
+            "Failed to set up channel notifications. Please try again or contact support."
+          );
+        }
       } catch (err) {
         if (err instanceof Error && err.name === "DuplicateChannelError") {
           setError(err.message);

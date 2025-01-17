@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
+import { supabaseAnon } from "@/lib/supabase";
 import { PLANS, UserPlan } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/use-profile";
@@ -34,10 +34,10 @@ export default function PlanPage() {
     try {
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } = await supabaseAnon.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { error } = await supabase
+      const { error } = await supabaseAnon
         .from("profiles")
         .update({
           plan: planId,

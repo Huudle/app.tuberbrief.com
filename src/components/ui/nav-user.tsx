@@ -25,7 +25,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { supabase } from "@/lib/supabase";
+import { supabaseAnon } from "@/lib/supabase";
 
 export function NavUser({
   user,
@@ -41,7 +41,7 @@ export function NavUser({
   const handleLogout = async () => {
     try {
       // First sign out from Supabase
-      const { error } = await supabase.auth.signOut();
+      const { error } = await supabaseAnon.auth.signOut();
       if (error) throw error;
 
       // Then call the auth callback to clear the cookie

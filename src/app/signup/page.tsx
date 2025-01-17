@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/lib/supabase";
+import { supabaseAnon } from "@/lib/supabase";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -59,7 +59,7 @@ export default function SignUpPage() {
     }
 
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const { data, error: signUpError } = await supabaseAnon.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {

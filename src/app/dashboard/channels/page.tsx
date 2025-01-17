@@ -28,6 +28,18 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { PLAN_LIMITS } from "@/lib/constants";
 import { useProfile } from "@/hooks/use-profile";
+import { managePubSubHubbub } from "@/lib/pubsub";
+
+async function unsubscribeFromPubSubHubbub(channelId: string): Promise<void> {
+  console.log("🔔 Unsubscribing from PubSubHubbub");
+  const ngrokUrl =
+    "https://91e4-2a02-4e0-2d19-94c-a50c-1355-d6b7-1ee3.ngrok-free.app";
+  await managePubSubHubbub({
+    channelId,
+    mode: "unsubscribe",
+    ngrokUrl,
+  });
+}
 
 export default function ChannelsPage() {
   const { profile, isLoading: isLoadingProfile } = useProfile();
@@ -60,14 +72,26 @@ export default function ChannelsPage() {
     }
   }, [profile, isLoadingProfile]);
 
-  const handleDelete = async (channelId: string) => {
+  const handleDelete = async (channelId: string, channelChannelId: string) => {
+    console.log("🔔 Deleting channel:", channelChannelId);
     if (!profile) return;
 
     try {
       setIsDeleting(channelId);
+      const channel = channels.find((c) => c.id === channelId);
+
+      if (!channel) {
+        throw new Error("Channel not found");
+      }
+
+      try {
+        await unsubscribeFromPubSubHubbub(channelChannelId);
+      } catch (err) {
+        console.error("Failed to unsubscribe from notifications:", err);
+      }
+
       await deleteProfileChannel(profile.id, channelId);
 
-      // Update the local state to remove the deleted channel
       setChannels((prevChannels) =>
         prevChannels.filter((channel) => channel.id !== channelId)
       );
@@ -111,7 +135,7 @@ export default function ChannelsPage() {
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction
-            onClick={() => handleDelete(channel.id)}
+            onClick={() => handleDelete(channel.id, channel.channelId)}
             className="bg-destructive hover:bg-destructive/90"
           >
             Delete

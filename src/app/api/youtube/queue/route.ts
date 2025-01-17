@@ -1,17 +1,14 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { YouTubeQueueMessage } from "@/lib/types";
+import { supabaseService } from "@/lib/supabase";
 
 // Constants
 const QUEUE_NAME = "youtube_data_queue";
 
 // Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    db: { schema: "pgmq_public" },
-  }
+const supabase = supabaseService(
+  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+  process.env.SUPABASE_SERVICE_ROLE_KEY as string
 );
 
 export async function POST(request: Request) {

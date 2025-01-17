@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { supabase } from "@/lib/supabase";
+import { supabaseAnon } from "@/lib/supabase";
 import { UserPlan } from "@/lib/constants";
 import { getDefaultAvatar } from "@/lib/utils";
 
@@ -59,7 +59,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true);
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } = await supabaseAnon.auth.getUser();
 
       if (!user) {
         setProfile(null);
@@ -67,7 +67,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const { data: profile, error } = await supabase
+      const { data: profile, error } = await supabaseAnon
         .from("profiles")
         .select("*")
         .eq("id", user.id)
@@ -98,7 +98,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
+    } = supabaseAnon.auth.onAuthStateChange(() => {
       loadProfile(true); // Force refresh on auth state change
     });
 

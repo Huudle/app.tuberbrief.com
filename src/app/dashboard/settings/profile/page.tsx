@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/lib/supabase";
+import { supabaseAnon } from "@/lib/supabase";
 import { useProfile } from "@/hooks/use-profile";
 
 const formSchema = z.object({
@@ -62,9 +62,9 @@ export default function ProfilePage() {
     try {
       const {
         data: { user },
-      } = await supabase.auth.getUser();
+      } = await supabaseAnon.auth.getUser();
 
-      const { error } = await supabase
+      const { error } = await supabaseAnon
         .from("profiles")
         .update({
           first_name: data.first_name,

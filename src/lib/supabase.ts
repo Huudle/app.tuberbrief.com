@@ -1,9 +1,22 @@
 import { createClient } from "@supabase/supabase-js";
 
-export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+export const supabaseAnon = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+    },
+  }
 );
+
+export const supabaseService = (url: string, key: string) =>
+  createClient(url, key, {
+    db: {
+      schema: "pgmq_public",
+    },
+  });
 
 export interface YouTubeChannel {
   id: string;
@@ -16,6 +29,7 @@ export interface YouTubeChannel {
 
 export interface ChannelListItem {
   id: string;
+  channelId: string;
   name: string;
   url: string;
   customUrl: string;
@@ -53,7 +67,7 @@ export async function checkIfChannelIsLinked(
   profileId: string,
   channelId: string
 ): Promise<boolean> {
-  const { error: checkError } = await supabase
+  const { error: checkError } = await supabaseAnon
     .from("profile_youtube_channels")
     .select("*")
     .eq("profile_id", profileId)
@@ -94,7 +108,7 @@ export async function addYouTubeChannel(
   try {
     // First, upsert the YouTube channel
     console.log("🔄 Upserting YouTube channel...");
-    const { error: channelError } = await supabase
+    const { error: channelError } = await supabaseAnon
       .from("youtube_channels")
       .upsert({
         id: channelData.id,
@@ -123,7 +137,7 @@ export async function addYouTubeChannel(
 
     if (!(await checkIfChannelIsLinked(profileId, channelData.id))) {
       console.log("🔗 Creating profile-channel association...");
-      const { data: linkData, error: linkError } = await supabase
+      const { data: linkData, error: linkError } = await supabaseAnon
         .from("profile_youtube_channels")
         .insert({
           profile_id: profileId,
@@ -145,7 +159,7 @@ export async function addYouTubeChannel(
 
     // Return the channel data
     console.log("📡 Fetching final channel data...");
-    const { data: channel, error: fetchError } = await supabase
+    const { data: channel, error: fetchError } = await supabaseAnon
       .from("youtube_channels")
       .select("*")
       .eq("id", channelData.id)
@@ -189,7 +203,7 @@ export async function getProfileChannels(
   profileId: string
 ): Promise<ChannelListItem[]> {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAnon
       .from("profile_youtube_channels")
       .select(
         `
@@ -219,11 +233,11 @@ export async function getProfileChannels(
       return [];
     }
 
-    // First cast to unknown, then to our expected type
     const typedData = data as unknown as ChannelQueryResult[];
 
     return typedData.map((item) => ({
       id: item.id,
+      channelId: item.youtube_channel.id,
       name: item.youtube_channel.title,
       url: item.youtube_channel.id,
       subscriberCount: item.youtube_channel.subscriber_count,
@@ -247,7 +261,7 @@ export async function deleteProfileChannel(
   console.log("🗑️ Deleting channel", { profileId, channelId });
 
   try {
-    const { error } = await supabase
+    const { error } = await supabaseAnon
       .from("profile_youtube_channels")
       .delete()
       .eq("profile_id", profileId)
@@ -269,7 +283,7 @@ export async function createOrUpdateChannel(
   channelId: string
 ): Promise<ChannelProcessingStatus> {
   // Check if channel already exists
-  const { data: existingChannel } = await supabase
+  const { data: existingChannel } = await supabaseAnon
     .from("youtube_channels")
     .select("*")
     .eq("id", channelId)
@@ -277,7 +291,7 @@ export async function createOrUpdateChannel(
 
   if (existingChannel) {
     // Update existing channel's processing status
-    await supabase
+    await supabaseAnon
       .from("youtube_channels")
       .update({
         processing_status: "pending",
@@ -295,7 +309,7 @@ export async function createOrUpdateChannel(
   }
 
   // Create initial channel record
-  const { error: channelError } = await supabase
+  const { error: channelError } = await supabaseAnon
     .from("youtube_channels")
     .insert([
       {
@@ -331,7 +345,7 @@ export async function updateChannelProcessingStatus(
   status: "completed" | "failed",
   error?: string
 ) {
-  await supabase
+  await supabaseAnon
     .from("youtube_channels")
     .update({
       processing_status: status,
@@ -339,4 +353,19 @@ export async function updateChannelProcessingStatus(
       sync_error: error || null,
     })
     .eq("id", channelId);
+}
+
+export async function removeYouTubeChannel(
+  profileId: string,
+  channelId: string
+) {
+  const { error } = await supabaseAnon
+    .from("youtube_channels")
+    .delete()
+    .match({ profile_id: profileId, channel_id: channelId });
+
+  if (error) {
+    console.error("Failed to remove channel:", error);
+    throw error;
+  }
 }
