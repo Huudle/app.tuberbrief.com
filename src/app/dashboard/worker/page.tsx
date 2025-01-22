@@ -13,12 +13,12 @@ export default function WorkerPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (process.env.NODE_ENV === "development") {
+    if (process.env.NODE_ENV === "production") {
       checkStatus();
     }
   }, []);
 
-  if (process.env.NODE_ENV !== "development") {
+  if (process.env.NODE_ENV !== "production") {
     return null;
   }
 
