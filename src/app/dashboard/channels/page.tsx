@@ -7,11 +7,8 @@ import { Trash2, Youtube, Users, Clock, Link as LinkIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { getRelativeTime } from "@/lib/utils";
-import {
-  getProfileChannels,
-  deleteProfileChannel,
-  ChannelListItem,
-} from "@/lib/supabase";
+import { getProfileChannels, deleteProfileChannel } from "@/lib/supabase";
+import { ChannelListItem } from "@/lib/types";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
