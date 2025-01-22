@@ -12,18 +12,16 @@ const subscriptionWorker = new SubscriptionWorker();
 // For development and staging, the cron job is triggered by the start-cron-*.sh scripts
 export async function GET() {
   try {
-    // Start all workers
-    await Promise.all([
-      queueWorker.start(),
-      emailWorker.start(),
-      subscriptionWorker.start(),
-    ]);
+    // Start workers without awaiting their infinite loops
+    queueWorker.start().catch(console.error);
+    emailWorker.start().catch(console.error);
+    subscriptionWorker.start().catch(console.error);
 
-    return NextResponse.json({ status: "Workers started successfully" });
+    return NextResponse.json({ status: "Workers invoked successfully" });
   } catch (error) {
-    console.error("Failed to start workers:", error);
+    console.error("Failed to invoke workers:", error);
     return NextResponse.json(
-      { error: "Failed to start workers" },
+      { error: "Failed to invoke workers" },
       { status: 500 }
     );
   }
