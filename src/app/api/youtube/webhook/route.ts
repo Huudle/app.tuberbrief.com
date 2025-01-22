@@ -51,9 +51,6 @@ export async function POST(request: Request) {
     const rawBody = await request.text();
     console.log("📦 Received payload size:", rawBody.length, "bytes");
 
-    // Only log first 500 characters of raw content to avoid cluttering logs
-    console.log("📄 Raw content preview:", rawBody.slice(0, 500) + "...");
-
     // Parse XML content
     const parser = new xml2js.Parser();
     const result = (await parser.parseStringPromise(
@@ -77,8 +74,8 @@ export async function POST(request: Request) {
       channelId,
       title,
       authorName,
-      published: published?.slice(0, 10),
-      updated: updated?.slice(0, 10),
+      published: published,
+      updated: updated,
     });
 
     // Get base URL from the incoming request

@@ -1,4 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
+import {
+  YouTubeChannel,
+  ChannelListItem,
+  ChannelProcessingStatus,
+  ChannelQueryResult,
+  VideoAIContent,
+  CaptionData,
+} from "./types";
 
 export const supabaseAnon = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
@@ -11,57 +19,23 @@ export const supabaseAnon = createClient(
   }
 );
 
-export const supabaseService = (url: string, key: string) =>
+export const supabaseServicePGMQPublic = (url: string, key: string) =>
   createClient(url, key, {
     db: {
       schema: "pgmq_public",
     },
   });
 
-export interface YouTubeChannel {
-  id: string;
-  title: string;
-  thumbnail: string;
-  subscriber_count: number;
-  last_video_id: string;
-  last_video_date: string;
-}
-
-export interface ChannelListItem {
-  id: string;
-  channelId: string;
-  name: string;
-  url: string;
-  customUrl: string;
-  subscriberCount: number;
-  lastVideoDate: string;
-  thumbnail: string;
-  latestVideoId: string;
-  avatar: string;
-  createdAt: string;
-}
-
-export interface ChannelProcessingStatus {
-  success: boolean;
-  status: "pending" | "completed" | "failed";
-  channelId?: string;
-  message?: string;
-  error?: string;
-}
-
-interface ChannelQueryResult {
-  id: string;
-  created_at: string;
-  youtube_channel: {
-    id: string;
-    title: string;
-    thumbnail: string;
-    subscriber_count: number;
-    last_video_id: string;
-    last_video_date: string;
-    custom_url: string;
-  };
-}
+export const supabaseServicePublic = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+    },
+  }
+);
 
 export async function checkIfChannelIsLinked(
   profileId: string,
@@ -366,6 +340,75 @@ export async function removeYouTubeChannel(
 
   if (error) {
     console.error("Failed to remove channel:", error);
+    throw error;
+  }
+}
+
+export async function getStoredCaptions(
+  videoId: string
+): Promise<CaptionData | null> {
+  const { data, error } = await supabaseAnon
+    .from("video_captions")
+    .select("transcript, language, title")
+    .eq("video_id", videoId)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return {
+    transcript: data.transcript,
+    language: data.language,
+    title: data.title,
+  };
+}
+
+export async function storeCaptions(
+  videoId: string,
+  captions: CaptionData
+): Promise<void> {
+  const { error } = await supabaseAnon.from("video_captions").upsert({
+    video_id: videoId,
+    transcript: captions.transcript,
+    language: captions.language,
+    title: captions.title,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (error) {
+    console.error("Failed to store captions:", error);
+    throw error;
+  }
+}
+
+export async function getStoredAIContent(
+  videoId: string
+): Promise<VideoAIContent | null> {
+  const { data, error } = await supabaseServicePublic
+    .from("video_ai_content")
+    .select("*")
+    .eq("video_id", videoId)
+    .single();
+
+  if (error || !data) return null;
+  return data;
+}
+
+export async function storeAIContent(
+  videoId: string,
+  aiContent: VideoAIContent
+): Promise<void> {
+  const { error } = await supabaseServicePublic
+    .from("video_ai_content")
+    .upsert({
+      video_id: videoId,
+      content: aiContent.content,
+      model: aiContent.model,
+    });
+
+  if (error) {
+    console.error("Failed to store AI content:", error);
     throw error;
   }
 }

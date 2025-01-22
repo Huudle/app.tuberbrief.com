@@ -58,3 +58,132 @@ export interface YouTubeQueueMessage {
   updated: string;
   timestamp?: string;
 }
+
+export interface Video {
+  id: string;
+  title: string;
+  url: string;
+}
+
+export interface VideoCaption {
+  video_id: string;
+  transcript: string;
+  language: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CaptionData {
+  transcript: string;
+  language: string;
+  title?: string;
+}
+
+export interface PGMQMessage<T> {
+  msg_id: number;
+  read_ct: number;
+  enqueued_at: string;
+  vt: string; // visibility timeout
+  message: T;
+}
+
+export interface Video {
+  title: string;
+  url: string;
+  date: string; // ISO date string
+  firstSeen: string; // ISO date string when we first discovered the video
+}
+
+export interface User {
+  email: string;
+  youtube_channels: string[];
+  subscription_tier: "free" | "basic" | "pro";
+  preferences?: {
+    instant_notifications: boolean;
+    include_transcript: boolean;
+    custom_highlights?: string[];
+    // ...other preferences
+  };
+}
+
+export interface EmailNotification {
+  id: string;
+  profile_id: string;
+  channel_id: string;
+  video_id: string;
+  title: string;
+  email_content: string;
+  status: "pending" | "sent" | "failed";
+  created_at: string;
+  sent_at: string | null;
+  profiles: {
+    email: string;
+  };
+}
+
+export interface YouTubeCaptionTrack {
+  baseUrl: string;
+  name: {
+    simpleText: string;
+  };
+  vssId: string;
+  languageCode: string;
+  kind: string;
+  isTranslatable: boolean;
+  trackName: string;
+}
+
+export interface YouTubeChannel {
+  id: string;
+  title: string;
+  thumbnail: string;
+  subscriber_count: number;
+  last_video_id: string;
+  last_video_date: string;
+}
+
+export interface ChannelListItem {
+  id: string;
+  channelId: string;
+  name: string;
+  url: string;
+  customUrl: string;
+  subscriberCount: number;
+  lastVideoDate: string;
+  thumbnail: string;
+  latestVideoId: string;
+  avatar: string;
+  createdAt: string;
+}
+
+export interface ChannelProcessingStatus {
+  success: boolean;
+  status: "pending" | "completed" | "failed";
+  channelId?: string;
+  message?: string;
+  error?: string;
+}
+
+export interface ChannelQueryResult {
+  id: string;
+  created_at: string;
+  youtube_channel: {
+    id: string;
+    title: string;
+    thumbnail: string;
+    subscriber_count: number;
+    last_video_id: string;
+    last_video_date: string;
+    custom_url: string;
+  };
+}
+
+export interface VideoAIContent {
+  content: {
+    briefSummary?: string;
+    keyPoints?: string[];
+    // ... can add more AI-generated content types in the future
+  };
+  model: string;
+}

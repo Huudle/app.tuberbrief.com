@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { YouTubeQueueMessage } from "@/lib/types";
-import { supabaseService } from "@/lib/supabase";
+import { supabaseServicePGMQPublic } from "@/lib/supabase";
 
 // Constants
 const QUEUE_NAME = "youtube_data_queue";
 
 // Initialize Supabase client
-const supabase = supabaseService(
+const supabase = supabaseServicePGMQPublic(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
   process.env.SUPABASE_SERVICE_ROLE_KEY as string
 );
@@ -25,8 +25,8 @@ export async function POST(request: Request) {
       videoId,
       title,
       authorName,
-      published: published?.slice(0, 10), // Log only date part
-      updated: updated?.slice(0, 10),
+      published: published,
+      updated: updated,
     });
 
     // Send message to queue
