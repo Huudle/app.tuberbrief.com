@@ -1,0 +1,1 @@
+curl -X GET https://flow-fusion.netlify.app/api/cron
