@@ -2,7 +2,7 @@ import OpenAI from "openai";
 import { Video } from "@/lib/types";
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY_FOR_TUBE_BRIEF,
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 interface Summary {
@@ -20,7 +20,7 @@ export const generateVideoSummary = async (
     console.log(`[Summarizer] Using language: ${language}`);
     console.log(`[Summarizer] Transcript length: ${transcript.length} chars`);
 
-    if (!process.env.OPENAI_API_KEY_FOR_TUBE_BRIEF) {
+    if (!process.env.OPENAI_API_KEY) {
       console.log(
         "[Summarizer] No OpenAI API key found, skipping summary generation"
       );
