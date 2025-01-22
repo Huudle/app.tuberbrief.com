@@ -10,8 +10,7 @@ import { generateEmailTemplate } from "@/lib/email-template";
 import { generateVideoSummary } from "@/lib/ai-processor";
 
 const QUEUE_NAME = "youtube_data_queue";
-const POLLING_INTERVAL = process.env.NODE_ENV === "production" ? 60000 : 5000; // 60 seconds in production, 5 seconds in development
-
+const POLLING_INTERVAL = 5000;
 export class QueueWorker {
   public isRunning: boolean = false;
   private supabasePGMQ = supabaseServicePGMQPublic(

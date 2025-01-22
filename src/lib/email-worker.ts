@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import { supabaseServicePublic } from "@/lib/supabase";
 
-const POLLING_INTERVAL = process.env.NODE_ENV === "production" ? 60000 : 5000;
+const POLLING_INTERVAL = 20000;
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export class EmailWorker {
