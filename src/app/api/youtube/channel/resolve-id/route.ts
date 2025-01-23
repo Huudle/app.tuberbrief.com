@@ -18,7 +18,9 @@ async function fetchChannelFeed(channelName: string) {
 
   const parser = new xml2js.Parser();
   const result = await parser.parseStringPromise(data);
-
+  
+  console.log("🔍 Raw XML feed result:", JSON.stringify(result, null, 2));
+  
   // Get the first entry (latest video)
   const latestEntry = result.feed.entry?.[1];
 
