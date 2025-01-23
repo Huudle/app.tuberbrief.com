@@ -119,6 +119,8 @@ export class QueueWorker {
             }
           : undefined,
         upgradeCTA: "Want more features? Upgrade your plan!",
+        showTranscript: false,
+        showUpgradeCTA: false,
       });
 
       // Get subscribers for this channel
