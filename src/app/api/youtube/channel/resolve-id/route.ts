@@ -84,7 +84,7 @@ async function scrapeChannelInfo(channelName: string) {
     };
   } catch (error) {
     console.error("Scraping error:", error);
-    throw new Error(`Failed to scrape channel info: ${error.message}`);
+    throw new Error(`Failed to scrape channel info: ${(error as Error).message}`);
   } finally {
     await browser.close();
   }
