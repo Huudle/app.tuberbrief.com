@@ -34,7 +34,8 @@ export default function PlanPage() {
     // Prevent plan changes temporarily
     toast({
       title: "Plan Changes Disabled",
-      description: "Plan changes are temporarily disabled. Please check back later.",
+      description:
+        "Plan changes are temporarily disabled. Please check back later.",
     });
     return;
 
@@ -50,7 +51,7 @@ export default function PlanPage() {
           plan: planId,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", user.id);
+        .eq("id", user?.id);
 
       if (error) throw error;
 
@@ -126,7 +127,9 @@ export default function PlanPage() {
           <h1 className="text-2xl font-bold">Plan Settings</h1>
           <p className="text-sm text-muted-foreground">
             Choose the plan that best fits your needs{" "}
-            <span className="text-yellow-600">(Changes temporarily disabled)</span>
+            <span className="text-yellow-600">
+              (Changes temporarily disabled)
+            </span>
           </p>
         </div>
 
@@ -138,7 +141,8 @@ export default function PlanPage() {
               key={planId}
               className={cn(
                 "relative cursor-pointer transition-all hover:shadow-md opacity-75",
-                profile?.plan === planId && "border-primary shadow-sm opacity-100"
+                profile?.plan === planId &&
+                  "border-primary shadow-sm opacity-100"
               )}
               onClick={() => handleUpdatePlan(planId)}
             >
