@@ -42,7 +42,7 @@ async function fetchChannelFeed(channelName: string) {
   // "https://www.youtube.com/channel/UCW5wxEjGHWNyatgZe-PU_tA"
   // This is uri and the id is the last part of the url which is UCW5wxEjGHWNyatgZe-PU_tA
   const channelIdOnly = uri.split("/").pop();
-  console.log("🚀 ~ fetchChannelFeed ~ channelIdOnly:", channelIdOnly);
+  console.log("📺 Channel id is fetched from xml feed:", channelIdOnly);
 
   return {
     success: true,
