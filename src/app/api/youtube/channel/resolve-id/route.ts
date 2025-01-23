@@ -16,6 +16,8 @@ async function fetchChannelFeed(channelName: string) {
   );
   const data = await response.text();
 
+  console.log("🔍 Raw XML feed result:", data);
+
   const parser = new xml2js.Parser();
   const result = await parser.parseStringPromise(data);
   
