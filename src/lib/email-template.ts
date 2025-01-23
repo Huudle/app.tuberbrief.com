@@ -9,6 +9,8 @@ interface EmailTemplateParams {
     keyPoints?: string[];
   };
   upgradeCTA?: string;
+  showTranscript?: boolean;
+  showUpgradeCTA?: boolean;
 }
 
 export function generateEmailTemplate({
@@ -19,6 +21,8 @@ export function generateEmailTemplate({
   captions,
   summary,
   upgradeCTA = "",
+  showTranscript = false,
+  showUpgradeCTA = false,
 }: EmailTemplateParams): string {
   const videoUrl = `https://youtube.com/watch?v=${videoId}`;
   const publishDate = new Date(publishedAt).toLocaleString();
@@ -29,58 +33,24 @@ export function generateEmailTemplate({
 <head>
   <meta charset="utf-8">
   <title>New Video from ${channelName}</title>
-  <style>
-    body { 
-      font-family: Arial, sans-serif; 
-      line-height: 1.6; 
-      max-width: 600px; 
-      margin: 0 auto; 
-      padding: 20px; 
-      color: #1a1a1a;
-    }
-    .video-title { 
-      color: #1a1a1a; 
-      font-size: 24px; 
-      margin-bottom: 20px; 
-      font-weight: bold;
-    }
-    .video-date { 
-      color: #666; 
-      margin: 20px 0; 
-      font-size: 12px; 
-    }
-    .key-point { 
-      margin-bottom: 10px; 
-    }
-    .transcript {
-      margin-top: 30px;
-      padding-top: 20px;
-    }
-    .upgrade-cta {
-      margin-top: 30px;
-      padding: 20px;
-      background: #f8f9fa;
-      border-radius: 5px;
-    }
-  </style>
 </head>
-<body>
-  <h1 class="video-title">${videoTitle}</h1>
-  <p class="video-date">${publishDate}</p>
+<body style="font-family: Arial, Helvetica, sans-serif; line-height: 1.6; color: #1a1a1a; max-width: 600px; margin: 0; padding: 20px;">
+  <h1 style="color: #1a1a1a; font-size: 24px; margin-bottom: 20px; font-weight: bold;">${videoTitle}</h1>
+  <p style="color: #666666; font-size: 12px; margin: 20px 0;">${publishDate}</p>
   
   ${
     summary
       ? `
-  <div>
-    <p>${summary.briefSummary}</p>
+  <div style="margin: 35px 0; padding: 0;">
+    <p style="margin: 0 0 20px 0;">${summary.briefSummary}</p>
     ${
       summary.keyPoints
         ? `
-    <div>
+    <div style="margin: 35px 0; padding: 0;">
       ${summary.keyPoints
         .map(
           (point) => `
-        <p class="key-point">• ${point}</p>
+        <p>• ${point}</p>
       `
         )
         .join("")}
@@ -94,21 +64,23 @@ export function generateEmailTemplate({
   }
 
   ${
-    captions
+    showTranscript && captions
       ? `
-  <div class="transcript">
-    <p>${captions}</p>
+  <div style="margin: 35px 0; padding: 0;">
+    <p style="margin: 0;">${captions}</p>
   </div>
   `
       : ""
   }
 
-  👉 Watch the video: <a href="${videoUrl}">${videoUrl}</a>
+  <div style="margin: 35px 0; padding: 0;">
+    <p style="margin: 0;">👉 Watch the video: <a href="${videoUrl}" style="color: #0066cc;">${videoUrl}</a></p>
+  </div>
 
   ${
-    upgradeCTA
+    showUpgradeCTA && upgradeCTA
       ? `
-  <div class="upgrade-cta">
+  <div style="margin: 35px 0; padding: 20px; background-color: #f8f9fa;">
     ${upgradeCTA}
   </div>
   `
