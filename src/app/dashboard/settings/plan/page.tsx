@@ -31,6 +31,13 @@ export default function PlanPage() {
   const { toast } = useToast();
 
   const handleUpdatePlan = async (planId: UserPlan) => {
+    // Prevent plan changes temporarily
+    toast({
+      title: "Plan Changes Disabled",
+      description: "Plan changes are temporarily disabled. Please check back later.",
+    });
+    return;
+
     try {
       const {
         data: { user },
@@ -118,7 +125,8 @@ export default function PlanPage() {
         <div>
           <h1 className="text-2xl font-bold">Plan Settings</h1>
           <p className="text-sm text-muted-foreground">
-            Choose the plan that best fits your needs
+            Choose the plan that best fits your needs{" "}
+            <span className="text-yellow-600">(Changes temporarily disabled)</span>
           </p>
         </div>
 
@@ -129,8 +137,8 @@ export default function PlanPage() {
             <Card
               key={planId}
               className={cn(
-                "relative cursor-pointer transition-all hover:shadow-md",
-                profile?.plan === planId && "border-primary shadow-sm"
+                "relative cursor-pointer transition-all hover:shadow-md opacity-75",
+                profile?.plan === planId && "border-primary shadow-sm opacity-100"
               )}
               onClick={() => handleUpdatePlan(planId)}
             >
