@@ -149,7 +149,57 @@ async function scrapeChannelInfo(channelName: string) {
 
 async function extractChannelIdFromHtml(channelName: string) {
   try {
-    const response = await fetch(`https://www.youtube.com/@${channelName}`);
+    // Handle four formats:
+    // 1. @username -> https://www.youtube.com/@username
+    // 2. Channel ID -> https://www.youtube.com/channel/UCAi_uNeDWRXj8C8yw358gWw
+    // 3. Custom URL -> https://www.youtube.com/c/GoogleDevelopers
+    // 4. username -> https://www.youtube.com/username
+    const isChannelId =
+      channelName.startsWith("UC") && channelName.length === 24;
+    const channelNameWithoutAt = channelName.replace("@", "");
+
+    let url;
+    if (isChannelId) {
+      url = `https://www.youtube.com/channel/${channelName}`;
+    } else if (channelName.startsWith("@")) {
+      url = `https://www.youtube.com/@${channelNameWithoutAt}`;
+    } else {
+      // Try custom URL format first
+      url = `https://www.youtube.com/c/${channelNameWithoutAt}`;
+    }
+
+    const response = await fetch(url);
+
+    // If custom URL fails, try other formats as fallback
+    if (response.status === 404 && !channelName.startsWith("@")) {
+      console.log("Custom URL not found, trying @username format...");
+      url = `https://www.youtube.com/@${channelNameWithoutAt}`;
+      const retryResponse = await fetch(url);
+
+      // If @username fails, try plain username format
+      if (retryResponse.status === 404) {
+        console.log("@username not found, trying plain username format...");
+        url = `https://www.youtube.com/${channelNameWithoutAt}`;
+        const finalResponse = await fetch(url);
+
+        if (finalResponse.status === 404) {
+          throw new Error(`Channel not found: ${channelName}`);
+        }
+        if (!finalResponse.ok) {
+          throw new Error(
+            `Failed to fetch channel page: ${finalResponse.status}`
+          );
+        }
+        return await handleChannelPage(finalResponse, channelName);
+      }
+
+      if (!retryResponse.ok) {
+        throw new Error(
+          `Failed to fetch channel page: ${retryResponse.status}`
+        );
+      }
+      return await handleChannelPage(retryResponse, channelName);
+    }
 
     if (response.status === 404) {
       throw new Error(`Channel not found: ${channelName}`);
@@ -159,94 +209,99 @@ async function extractChannelIdFromHtml(channelName: string) {
       throw new Error(`Failed to fetch channel page: ${response.status}`);
     }
 
-    const html = await response.text();
-
-    // First try to get channel ID from og:url
-    const ogUrlMatch = html.match(/<meta property="og:url" content="([^"]+)"/);
-    let channelId;
-
-    if (ogUrlMatch && ogUrlMatch[1].includes("/channel/")) {
-      channelId = ogUrlMatch[1].split("/channel/")[1].split("/")[0];
-    } else {
-      // Fallback to searching in the HTML
-      const channelIdMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
-      if (!channelIdMatch) {
-        throw new Error("Channel ID not found in page HTML");
-      }
-      channelId = channelIdMatch[1];
-    }
-
-    // Use og:url as canonical URL if available
-    const url =
-      ogUrlMatch?.[1] || `https://www.youtube.com/channel/${channelId}`;
-
-    // Extract title (try multiple patterns)
-    let title = channelName;
-    const titlePatterns = [
-      /<meta name="title" content="([^"]+)"/,
-      /<meta property="og:title" content="([^"]+)"/,
-      /<title>([^<]+)<\/title>/,
-    ];
-
-    for (const pattern of titlePatterns) {
-      const match = html.match(pattern);
-      if (match) {
-        title = match[1].replace(" - YouTube", "");
-        break;
-      }
-    }
-
-    // Extract thumbnail (try multiple patterns)
-    let thumbnail = null;
-    const thumbnailPatterns = [
-      /"avatar":\{"thumbnails":\[{"url":"([^"]+)"/,
-      /<meta property="og:image" content="([^"]+)"/,
-      /"thumbnails":\[\{"url":"([^"]+)","width":\d+,"height":\d+\}\]/,
-    ];
-
-    for (const pattern of thumbnailPatterns) {
-      const match = html.match(pattern);
-      if (match) {
-        thumbnail = match[1];
-        break;
-      }
-    }
-
-    // Try to extract subscriber count and view count
-    const subscriberMatch = html.match(
-      /"subscriberCountText":\{"simpleText":"([^"]+)"|"metadataParts":\[\{"text":\{"content":"([^"]+subscribers)"/
-    );
-
-    const subscribers = subscriberMatch?.[1] || subscriberMatch?.[2];
-
-    console.log("📺 Channel info extracted from HTML:", {
-      channelId,
-      title,
-      url,
-      thumbnail,
-      subscribers,
-      views: null,
-      latestVideo: null,
-      published: null,
-    });
-
-    return {
-      success: true,
-      data: {
-        author: title,
-        uri: url,
-        title,
-        thumbnail,
-        viewCount: null, // Could parse from viewCountMatch if needed
-        lastVideoId: null,
-        lastVideoDate: null,
-        channelId,
-      },
-    };
+    return await handleChannelPage(response, channelName);
   } catch (error) {
     console.error("Failed to extract channel info from HTML:", error);
     throw error;
   }
+}
+
+// Helper function to handle channel page response
+async function handleChannelPage(response: Response, channelName: string) {
+  const html = await response.text();
+
+  // First try to get channel ID from og:url
+  const ogUrlMatch = html.match(/<meta property="og:url" content="([^"]+)"/);
+  let channelId;
+
+  if (ogUrlMatch && ogUrlMatch[1].includes("/channel/")) {
+    channelId = ogUrlMatch[1].split("/channel/")[1].split("/")[0];
+  } else {
+    // Fallback to searching in the HTML
+    const channelIdMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
+    if (!channelIdMatch) {
+      throw new Error("Channel ID not found in page HTML");
+    }
+    channelId = channelIdMatch[1];
+  }
+
+  // Use og:url as canonical URL if available
+  const canonicalUrl =
+    ogUrlMatch?.[1] || `https://www.youtube.com/channel/${channelId}`;
+
+  // Extract title (try multiple patterns)
+  let title = channelName;
+  const titlePatterns = [
+    /<meta name="title" content="([^"]+)"/,
+    /<meta property="og:title" content="([^"]+)"/,
+    /<title>([^<]+)<\/title>/,
+  ];
+
+  for (const pattern of titlePatterns) {
+    const match = html.match(pattern);
+    if (match) {
+      title = match[1].replace(" - YouTube", "");
+      break;
+    }
+  }
+
+  // Extract thumbnail (try multiple patterns)
+  let thumbnail = null;
+  const thumbnailPatterns = [
+    /"avatar":\{"thumbnails":\[{"url":"([^"]+)"/,
+    /<meta property="og:image" content="([^"]+)"/,
+    /"thumbnails":\[\{"url":"([^"]+)","width":\d+,"height":\d+\}\]/,
+  ];
+
+  for (const pattern of thumbnailPatterns) {
+    const match = html.match(pattern);
+    if (match) {
+      thumbnail = match[1];
+      break;
+    }
+  }
+
+  // Try to extract subscriber count and view count
+  const subscriberMatch = html.match(
+    /"subscriberCountText":\{"simpleText":"([^"]+)"|"metadataParts":\[\{"text":\{"content":"([^"]+subscribers)"/
+  );
+
+  const subscribers = subscriberMatch?.[1] || subscriberMatch?.[2];
+
+  console.log("📺 Channel info extracted from HTML:", {
+    channelId,
+    title,
+    url: canonicalUrl,
+    thumbnail,
+    subscribers,
+    views: null,
+    latestVideo: null,
+    published: null,
+  });
+
+  return {
+    success: true,
+    data: {
+      author: title,
+      uri: canonicalUrl,
+      title,
+      thumbnail,
+      viewCount: null, // Could parse from viewCountMatch if needed
+      lastVideoId: null,
+      lastVideoDate: null,
+      channelId,
+    },
+  };
 }
 
 async function fetchChannelFeed(channelName: string) {
