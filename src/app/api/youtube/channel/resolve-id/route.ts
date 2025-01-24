@@ -17,8 +17,9 @@ const getBrowser = async () => {
     });
   }
 
-  // For production deployment
-
+  // For production deployment: Ubuntu 22.04.5 LTS (aarch64)
+  // Installed by:
+  // sudo apt install -y chromium-browser
   const executablePath = "/snap/bin/chromium";
 
   return puppeteer.launch({
@@ -44,12 +45,15 @@ async function scrapeChannelInfo(channelName: string) {
     await page.setViewport({ width: 1280, height: 720 });
 
     console.log(`Navigating to: https://www.youtube.com/@${channelName}`);
-    
+
     // Navigate to the channel page
-    const response = await page.goto(`https://www.youtube.com/@${channelName}`, {
-      waitUntil: "networkidle0",
-      timeout: 30000,
-    });
+    const response = await page.goto(
+      `https://www.youtube.com/@${channelName}`,
+      {
+        waitUntil: "networkidle0",
+        timeout: 30000,
+      }
+    );
 
     // Check if page was found
     if (response?.status() === 404) {
@@ -89,20 +93,20 @@ async function scrapeChannelInfo(channelName: string) {
 
     // Extract channel info with fallbacks
     const channelInfo = await page.evaluate(() => {
-      const getMetaContent = (selector: string) => 
+      const getMetaContent = (selector: string) =>
         document.querySelector(selector)?.getAttribute("content");
-      
-      const url = 
+
+      const url =
         getMetaContent('meta[property="og:url"]') ||
         document.querySelector('link[rel="canonical"]')?.getAttribute("href") ||
         window.location.href;
-        
-      const title = 
+
+      const title =
         getMetaContent('meta[property="og:title"]') ||
         getMetaContent('meta[name="title"]') ||
         document.title;
-        
-      const image = 
+
+      const image =
         getMetaContent('meta[property="og:image"]') ||
         getMetaContent('meta[name="thumbnail"]');
 
@@ -114,7 +118,7 @@ async function scrapeChannelInfo(channelName: string) {
     }
 
     // Extract channel ID from URL
-    const channelId = channelInfo.url.includes("/channel/") 
+    const channelId = channelInfo.url.includes("/channel/")
       ? channelInfo.url.split("/channel/")[1].split("/")[0]
       : channelInfo.url.split("/").pop();
 
@@ -143,6 +147,108 @@ async function scrapeChannelInfo(channelName: string) {
   }
 }
 
+async function extractChannelIdFromHtml(channelName: string) {
+  try {
+    const response = await fetch(`https://www.youtube.com/@${channelName}`);
+
+    if (response.status === 404) {
+      throw new Error(`Channel not found: ${channelName}`);
+    }
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch channel page: ${response.status}`);
+    }
+
+    const html = await response.text();
+
+    // First try to get channel ID from og:url
+    const ogUrlMatch = html.match(/<meta property="og:url" content="([^"]+)"/);
+    let channelId;
+
+    if (ogUrlMatch && ogUrlMatch[1].includes("/channel/")) {
+      channelId = ogUrlMatch[1].split("/channel/")[1].split("/")[0];
+    } else {
+      // Fallback to searching in the HTML
+      const channelIdMatch = html.match(/"channelId":"(UC[a-zA-Z0-9_-]{22})"/);
+      if (!channelIdMatch) {
+        throw new Error("Channel ID not found in page HTML");
+      }
+      channelId = channelIdMatch[1];
+    }
+
+    // Use og:url as canonical URL if available
+    const url =
+      ogUrlMatch?.[1] || `https://www.youtube.com/channel/${channelId}`;
+
+    // Extract title (try multiple patterns)
+    let title = channelName;
+    const titlePatterns = [
+      /<meta name="title" content="([^"]+)"/,
+      /<meta property="og:title" content="([^"]+)"/,
+      /<title>([^<]+)<\/title>/,
+    ];
+
+    for (const pattern of titlePatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        title = match[1].replace(" - YouTube", "");
+        break;
+      }
+    }
+
+    // Extract thumbnail (try multiple patterns)
+    let thumbnail = null;
+    const thumbnailPatterns = [
+      /"avatar":\{"thumbnails":\[{"url":"([^"]+)"/,
+      /<meta property="og:image" content="([^"]+)"/,
+      /"thumbnails":\[\{"url":"([^"]+)","width":\d+,"height":\d+\}\]/,
+    ];
+
+    for (const pattern of thumbnailPatterns) {
+      const match = html.match(pattern);
+      if (match) {
+        thumbnail = match[1];
+        break;
+      }
+    }
+
+    // Try to extract subscriber count and view count
+    const subscriberMatch = html.match(
+      /"subscriberCountText":\{"simpleText":"([^"]+)"|"metadataParts":\[\{"text":\{"content":"([^"]+subscribers)"/
+    );
+
+    const subscribers = subscriberMatch?.[1] || subscriberMatch?.[2];
+
+    console.log("📺 Channel info extracted from HTML:", {
+      channelId,
+      title,
+      url,
+      thumbnail,
+      subscribers,
+      views: null,
+      latestVideo: null,
+      published: null,
+    });
+
+    return {
+      success: true,
+      data: {
+        author: title,
+        uri: url,
+        title,
+        thumbnail,
+        viewCount: null, // Could parse from viewCountMatch if needed
+        lastVideoId: null,
+        lastVideoDate: null,
+        channelId,
+      },
+    };
+  } catch (error) {
+    console.error("Failed to extract channel info from HTML:", error);
+    throw error;
+  }
+}
+
 async function fetchChannelFeed(channelName: string) {
   try {
     // First try XML feed
@@ -153,12 +259,17 @@ async function fetchChannelFeed(channelName: string) {
 
     // Return 404 if the channel is not found
     if (response.status === 404) {
-      throw new Error(`Channel xml feed not found: ${channelName}`);
+      console.log("XML feed not found, trying HTML extraction...");
+      try {
+        return await extractChannelIdFromHtml(channelNameWithoutAt);
+      } catch {
+        console.log("HTML extraction failed, falling back to scraping...");
+        return await scrapeChannelInfo(channelNameWithoutAt);
+      }
     }
 
     if (!response.ok) {
-      console.log("XML feed failed, falling back to scraping");
-      return await scrapeChannelInfo(channelNameWithoutAt);
+      throw new Error(`Failed to fetch feed: ${response.status}`);
     }
 
     const data = await response.text();
@@ -205,8 +316,15 @@ async function fetchChannelFeed(channelName: string) {
     };
   } catch (error) {
     console.error("XML feed failed with error:", error);
-    console.log("Falling back to scraping...");
-    return await scrapeChannelInfo(channelName);
+
+    // Try HTML extraction before puppeteer
+    try {
+      console.log("Trying HTML extraction...");
+      return await extractChannelIdFromHtml(channelName);
+    } catch {
+      console.log("HTML extraction failed, falling back to scraping...");
+      return await scrapeChannelInfo(channelName);
+    }
   }
 }
 
