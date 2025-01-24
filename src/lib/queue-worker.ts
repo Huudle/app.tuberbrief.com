@@ -70,10 +70,30 @@ export class QueueWorker {
         title: message.title,
         published: message.published,
       });
+
+      // If videoId or channelId is empty, delete the message and return
+      if (!message.videoId || !message.channelId) {
+        console.log("ℹ️ Skipping processing due to empty videoId or channelId");
+        await this.supabasePGMQ.rpc("delete", {
+          queue_name: QUEUE_NAME,
+          msg_id: queueMessage.msg_id,
+        });
+        return;
+      }
+
       console.log("📦 Starting processing at:", new Date().toISOString());
 
       // Fetch video captions
       const captions = await fetchCaptions(message.videoId, message.title);
+      // If captions are empty, delete the message and return
+      if (!captions) {
+        console.log("ℹ️ Skipping processing due to empty captions");
+        await this.supabasePGMQ.rpc("delete", {
+          queue_name: QUEUE_NAME,
+          msg_id: queueMessage.msg_id,
+        });
+        return;
+      }
 
       // Check for existing AI content
       const aiContent = await getStoredAIContent(message.videoId);
