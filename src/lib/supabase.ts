@@ -19,8 +19,16 @@ export const supabaseAnon = createClient(
   }
 );
 
-export const supabaseServicePGMQPublic = (url: string, key: string) =>
-  createClient(url, key);
+export const supabaseServicePGMQPublic = (url: string, key: string) => {
+  // Check if url or key is empty
+  if (!url || !key) {
+    throw new Error("URL or key is empty");
+  }
+  createClient(url, key, {
+    db: {
+      schema: "pgmq_public",
+    },
+  });
 
 export const supabaseServicePublic = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
