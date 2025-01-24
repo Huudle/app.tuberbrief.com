@@ -5,6 +5,21 @@ import { supabaseServicePGMQPublic } from "@/lib/supabase";
 // Constants
 const QUEUE_NAME = "youtube_data_queue";
 
+// 🚨 CRITICAL WARNING!!! DO NOT DELETE THIS COMMENT 🚨  
+// ISSUE: Queue works initially but then STOPS with the following error:  
+/*
+permission denied for sequence q_youtube_data_queue_msg_id_seq
+{
+  code: '42501',
+  details: null,
+  hint: null,
+  message: 'permission denied for sequence q_youtube_data_queue_msg_id_seq'
+}
+*/
+// FIX: Run the following command in the Supabase console to resolve it:  
+// GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA pgmq TO service_role;  
+
+
 // Initialize Supabase client
 const supabase = supabaseServicePGMQPublic(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
@@ -28,7 +43,7 @@ export async function POST(request: Request) {
       published: published,
       updated: updated,
     });
-
+    
     // Send message to queue
     const { data, error } = await supabase.rpc("send", {
       queue_name: QUEUE_NAME,
