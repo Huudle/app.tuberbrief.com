@@ -17,7 +17,6 @@ const getBrowser = async () => {
     });
   }
 
-
   // For production deployment
 
   const executablePath = "/snap/bin/chromium";
@@ -45,32 +44,79 @@ async function scrapeChannelInfo(channelName: string) {
     await page.setViewport({ width: 1280, height: 720 });
 
     console.log(`Navigating to: https://www.youtube.com/@${channelName}`);
-    await page.goto(`https://www.youtube.com/@${channelName}`, {
+    
+    // Navigate to the channel page
+    const response = await page.goto(`https://www.youtube.com/@${channelName}`, {
       waitUntil: "networkidle0",
-      timeout: 10000,
+      timeout: 30000,
     });
 
-    // Wait for channel info to load
-    await page.waitForSelector('meta[property="og:url"]', { timeout: 15000 });
+    // Check if page was found
+    if (response?.status() === 404) {
+      throw new Error(`Channel not found: ${channelName}`);
+    }
 
-    // Extract channel info
+    // Wait for any of these selectors to appear
+    try {
+      await Promise.race([
+        page.waitForSelector('meta[property="og:url"]', { timeout: 15000 }),
+        page.waitForSelector('link[rel="canonical"]', { timeout: 15000 }),
+        page.waitForSelector('meta[itemprop="channelId"]', { timeout: 15000 }),
+      ]);
+    } catch (error) {
+      console.log("Timeout waiting for selectors, checking URL...");
+      // If selectors aren't found, try to get info from URL
+      const currentUrl = page.url();
+      if (currentUrl.includes("/channel/")) {
+        const channelId = currentUrl.split("/channel/")[1].split("/")[0];
+        const title = await page.title();
+        return {
+          success: true,
+          data: {
+            author: title || channelName,
+            uri: currentUrl,
+            title: title || channelName,
+            thumbnail: null,
+            viewCount: 0,
+            lastVideoId: null,
+            lastVideoDate: null,
+            channelId,
+          },
+        };
+      }
+      throw error;
+    }
+
+    // Extract channel info with fallbacks
     const channelInfo = await page.evaluate(() => {
-      const urlMeta = document.querySelector('meta[property="og:url"]');
-      const titleMeta = document.querySelector('meta[property="og:title"]');
-      const imageMeta = document.querySelector('meta[property="og:image"]');
+      const getMetaContent = (selector: string) => 
+        document.querySelector(selector)?.getAttribute("content");
+      
+      const url = 
+        getMetaContent('meta[property="og:url"]') ||
+        document.querySelector('link[rel="canonical"]')?.getAttribute("href") ||
+        window.location.href;
+        
+      const title = 
+        getMetaContent('meta[property="og:title"]') ||
+        getMetaContent('meta[name="title"]') ||
+        document.title;
+        
+      const image = 
+        getMetaContent('meta[property="og:image"]') ||
+        getMetaContent('meta[name="thumbnail"]');
 
-      return {
-        url: urlMeta?.getAttribute("content"),
-        title: titleMeta?.getAttribute("content"),
-        image: imageMeta?.getAttribute("content"),
-      };
+      return { url, title, image };
     });
 
     if (!channelInfo.url) {
       throw new Error("Could not find channel URL");
     }
 
-    const channelId = channelInfo.url.split("/").pop();
+    // Extract channel ID from URL
+    const channelId = channelInfo.url.includes("/channel/") 
+      ? channelInfo.url.split("/channel/")[1].split("/")[0]
+      : channelInfo.url.split("/").pop();
 
     console.log("Successfully scraped channel info:", channelInfo);
 
