@@ -16,11 +16,16 @@ const getBrowser = async () => {
           : "/usr/bin/google-chrome",
     });
   }
-  // For Netlify deployment
+
+
+  // For production deployment
+
+  const executablePath = "/snap/bin/chromium";
+
   return puppeteer.launch({
     args: chromium.args,
     defaultViewport: chromium.defaultViewport,
-    executablePath: chromium.executablePath.toString(),
+    executablePath: executablePath,
     headless: chromium.headless,
   });
 };
@@ -84,7 +89,9 @@ async function scrapeChannelInfo(channelName: string) {
     };
   } catch (error) {
     console.error("Scraping error:", error);
-    throw new Error(`Failed to scrape channel info: ${(error as Error).message}`);
+    throw new Error(
+      `Failed to scrape channel info: ${(error as Error).message}`
+    );
   } finally {
     await browser.close();
   }
