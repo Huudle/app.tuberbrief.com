@@ -157,7 +157,7 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
 export async function fetchCaptions(
   videoId: string,
   title?: string
-): Promise<string> {
+): Promise<string | null> {
   console.log("🎥 Fetching captions for video:", videoId);
 
   try {
@@ -175,7 +175,7 @@ export async function fetchCaptions(
 
     const captionData = await fetchVideoCaption(video);
     if (!captionData) {
-      return "No captions available for this video.";
+      return null;
     }
 
     await storeCaptions(videoId, {
