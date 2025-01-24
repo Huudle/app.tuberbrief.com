@@ -30,6 +30,8 @@ const getBrowser = async () => {
   });
 };
 
+// Scraping works on development machines but not on production machines usually. For example, on Netlify, Vercel, etc.
+// Even on our own servers, it doesn't work as expected.
 async function scrapeChannelInfo(channelName: string) {
   const browser = await getBrowser();
 
