@@ -51,7 +51,7 @@ async function scrapeChannelInfo(channelName: string) {
     });
 
     // Wait for channel info to load
-    await page.waitForSelector('meta[property="og:url"]', { timeout: 5000 });
+    await page.waitForSelector('meta[property="og:url"]', { timeout: 15000 });
 
     // Extract channel info
     const channelInfo = await page.evaluate(() => {
