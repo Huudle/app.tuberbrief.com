@@ -1,15 +1,16 @@
 import { Video, YouTubeCaptionTrack } from "./types";
 import { getStoredCaptions, storeCaptions } from "./supabase";
-import { exec } from "child_process";
-import { promisify } from "util";
+import { HttpsProxyAgent } from "https-proxy-agent";
+import fetch from "node-fetch";
+
+const username = "flowfusion_IahFh";
+const password = process.env.OXYLABS_PASSWORD;
 
 interface CaptionData {
   transcript: string;
   language: string;
   duration: number;
 }
-
-const execAsync = promisify(exec);
 
 const parseXMLCaptions = (xmlContent: string): string => {
   try {
@@ -70,20 +71,29 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
       url: video.url,
     });
 
-    // Use curl instead of fetch
-    const { stdout, stderr } = await execAsync(`curl -s '${video.url}' \
-      -H 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' \
-      -H 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8' \
-      -H 'Accept-Language: en-US,en;q=0.9' \
-      -H 'Connection: keep-alive' \
-      -H 'Upgrade-Insecure-Requests: 1' \
-      -H 'Cache-Control: no-cache'`);
+    const agent = new HttpsProxyAgent(
+      `https://${username}:${password}@unblock.oxylabs.io:60000`
+    );
 
-    if (stderr) {
-      console.error("⚠️ Curl stderr:", stderr);
+    // Ignore the certificate
+    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
+
+    const response = await fetch(video.url, {
+      agent: agent,
+      method: "GET",
+      headers: {
+        "x-oxylabs-render": "html",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch video page: ${response.status}`);
     }
 
-    const htmlContent = stdout;
+    const htmlContent = await response.text();
+
+    // Log all the HTML content
+    console.log("🔍 HTML content:", htmlContent);
 
     // Log all the HTML content's meta tags
     console.log(
@@ -93,10 +103,7 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
 
     // Basic validation
     if (htmlContent.length < 1000) {
-      console.warn("⚠️ HTML content suspiciously small:", {
-        length: htmlContent.length,
-        preview: htmlContent.substring(0, 200),
-      });
+      console.warn("⚠️ HTML content suspiciously small");
       return null;
     }
 
@@ -104,10 +111,7 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
     const match = htmlContent.match(captionTracksRegex);
 
     if (!match?.[1]) {
-      console.log(
-        "⚠️ No caption tracks found in HTML content. Preview:",
-        htmlContent.substring(0, 500)
-      );
+      console.log("⚠️ No caption tracks found");
       return null;
     }
 
@@ -131,19 +135,12 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
       .replace(/\\u0026/g, "&")
       .replace(/\\/g, "");
 
-    // Use curl for caption content too
-    const { stdout: captionsContent, stderr: captionsError } = await execAsync(
-      `curl -s '${decodedUrl}'`
-    );
-
-    if (captionsError) {
-      console.error("⚠️ Curl stderr for captions:", captionsError);
+    const captionsResponse = await fetch(decodedUrl);
+    if (!captionsResponse.ok) {
+      throw new Error(`Failed to fetch captions: ${captionsResponse.status}`);
     }
 
-    if (!captionsContent) {
-      throw new Error("Failed to fetch captions content");
-    }
-
+    const captionsContent = await captionsResponse.text();
     const transcript = parseXMLCaptions(captionsContent);
 
     console.log("✅ Successfully fetched captions:", {
@@ -158,11 +155,7 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
       duration: 0,
     };
   } catch (error) {
-    console.error("💥 Caption fetcher error:", {
-      error: error instanceof Error ? error.message : error,
-      videoId: video.id,
-      url: video.url,
-    });
+    console.error("💥 Caption fetcher error:", (error as Error).message);
     return null;
   }
 };
