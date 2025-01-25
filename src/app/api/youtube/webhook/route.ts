@@ -78,11 +78,6 @@ export async function POST(request: Request) {
       updated: updated,
     });
 
-    // Get base URL from the incoming request
-    const baseUrl = new URL(request.url).origin;
-
-    console.log("🔗 Base URL:", baseUrl);
-
     console.log("📦 Queueing video data for processing");
 
     // Use internal fetch instead of direct fetch
