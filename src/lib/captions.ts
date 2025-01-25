@@ -98,6 +98,9 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
     // Log a small snippet of the HTML content to understand the structure
     console.log("🔍 HTML content snippet:", htmlContent.substring(0, 500));
 
+    // Log all the HTML content's meta tags
+    console.log("🔍 HTML content meta tags:", htmlContent.match(/<meta[^>]*>/g));
+
     // Basic validation
     if (htmlContent.length < 1000) {
       console.warn("⚠️ HTML content suspiciously small");
