@@ -71,6 +71,8 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
       url: video.url,
     });
 
+    // Advanced proxy solutions - Web Unblocker
+    // https://developers.oxylabs.io/advanced-proxy-solutions/web-unblocker/getting-started
     const agent = new HttpsProxyAgent(
       `https://${username}:${password}@unblock.oxylabs.io:60000`
     );
@@ -91,9 +93,6 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
     }
 
     const htmlContent = await response.text();
-
-    // Log all the HTML content
-    console.log("🔍 HTML content:", htmlContent);
 
     // Log all the HTML content's meta tags
     console.log(
