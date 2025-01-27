@@ -73,6 +73,19 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
 
     const transcriptResponse = await getTranscript(video.id, { text: true });
     console.log("🔍 Transcript response:", transcriptResponse);
+    // If transcriptResponse is not available, return null
+    // Supadata returns:
+    /*
+    {
+      error: 'transcript-unavailable',
+      message: 'No transcript is available for this video'
+    }
+    */
+    if (!transcriptResponse) {
+      console.log("⚠️ No transcript is available for this video");
+      return null
+    }
+
     const content = transcriptResponse?.content as string;
     const language = transcriptResponse.lang;
 
