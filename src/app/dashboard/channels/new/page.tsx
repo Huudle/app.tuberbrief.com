@@ -13,6 +13,7 @@ import {
   checkIfChannelIsLinked,
   getProfileChannels,
   removeYouTubeChannel,
+  updateChannelSubscription,
 } from "@/lib/supabase";
 import { PLAN_LIMITS } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,15 +21,16 @@ import { useProfile } from "@/hooks/use-profile";
 import { ChannelFromXmlFeed } from "@/lib/types";
 import { managePubSubHubbub } from "@/lib/pubsub";
 
-async function subscribeToPubSubHubbub(channelId: string): Promise<void> {
+async function subscribeToPubSubHubbub(channelId: string): Promise<string> {
   console.log("🔔 Subscribing to PubSubHubbub");
   const ngrokUrl =
     "https://91e4-2a02-4e0-2d19-94c-a50c-1355-d6b7-1ee3.ngrok-free.app";
-  await managePubSubHubbub({
+  const callbackUrl = await managePubSubHubbub({
     channelId,
     mode: "subscribe",
     ngrokUrl,
   });
+  return callbackUrl;
 }
 
 export default function AddChannelPage() {
@@ -234,12 +236,19 @@ export default function AddChannelPage() {
           });
 
           // 10. Subscribe to PubSubHubbub notifications (required)
-          await subscribeToPubSubHubbub(channel.channelId);
+          const callbackUrl = await subscribeToPubSubHubbub(channel.channelId);
 
-          // 11. Start background update
+          // 11. Update channel subscription
+          await updateChannelSubscription(
+            profile.id,
+            channel.channelId,
+            callbackUrl
+          );
+
+          // 12. Start background update
           await startChannelInfoUpdate(channel.channelId, profile.id);
 
-          // 12. Navigate only after all operations are complete
+          // 13. Navigate only after all operations are complete
           router.push("/dashboard/channels");
         } catch (err) {
           // If PubSubHubbub subscription fails, we should:

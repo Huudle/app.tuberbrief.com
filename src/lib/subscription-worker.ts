@@ -81,13 +81,14 @@ export class SubscriptionWorker {
           );
 
           // Attempt to subscribe
-          await managePubSubHubbub(channel.youtube_channel_id);
+          const callbackUrl = await managePubSubHubbub(channel.youtube_channel_id);
 
           // Update subscription timestamp
           const { error: updateError } = await this.supabase
             .from("profile_youtube_channels")
             .update({
               subscribed_at: new Date().toISOString(),
+              callback_url: callbackUrl,
             })
             .eq("youtube_channel_id", channel.youtube_channel_id);
 

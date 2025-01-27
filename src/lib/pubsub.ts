@@ -18,7 +18,7 @@ export async function managePubSubHubbub({
   // leaseSeconds = default,
   // When you subscribe to a topic (e.g., a YouTube channel's feed) using the PubSubHubbub hub, you specify a lease_seconds parameter. YouTube's implementation usually defaults to 30 days (2,592,000 seconds) for the lease duration.
   ngrokUrl,
-}: PubSubOptions): Promise<void> {
+}: PubSubOptions): Promise<string> {
   // Build callback URL (with ngrok support for local development)
   let callbackUrl = buildUrl("/api/youtube/webhook");
   if (process.env.NODE_ENV === "development" && ngrokUrl) {
@@ -51,4 +51,5 @@ export async function managePubSubHubbub({
   if (!result.success) {
     throw new Error(result.error || `Failed to ${mode} channel updates`);
   }
+  return callbackUrl;
 }

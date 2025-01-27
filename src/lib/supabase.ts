@@ -68,6 +68,18 @@ export async function checkIfChannelIsLinked(
   return true;
 }
 
+export async function updateChannelSubscription(
+  profileId: string,
+  channelId: string,
+  callbackUrl: string
+) {
+  await supabaseAnon
+    .from("profile_youtube_channels")
+    .update({ callback_url: callbackUrl })
+    .eq("profile_id", profileId)
+    .eq("youtube_channel_id", channelId);
+}
+
 export async function addYouTubeChannel(
   profileId: string,
   channelData: {
