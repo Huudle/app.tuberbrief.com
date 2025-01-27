@@ -1,6 +1,6 @@
 import { Video } from "./types";
 import { getStoredCaptions, storeCaptions } from "./supabase";
-import { getTranscript, TranscriptSegment } from "@/lib/supadata";
+import { getTranscript } from "@/lib/supadata";
 
 interface CaptionData {
   transcript: string;
@@ -72,10 +72,8 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
     });
 
     const transcriptResponse = await getTranscript(video.id, { text: true });
-    const transcriptSegments =
-      transcriptResponse?.content as TranscriptSegment[];
-
-    const content = transcriptSegments.map((segment) => segment.text).join(" ");
+    console.log("🔍 Transcript response:", transcriptResponse);
+    const content = transcriptResponse?.content as string;
     console.log("🔍 Content:", content);
     const language = transcriptResponse.lang;
 
