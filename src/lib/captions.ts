@@ -74,7 +74,6 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
     const transcriptResponse = await getTranscript(video.id, { text: true });
     console.log("🔍 Transcript response:", transcriptResponse);
     const content = transcriptResponse?.content as string;
-    console.log("🔍 Content:", content);
     const language = transcriptResponse.lang;
 
     return {
