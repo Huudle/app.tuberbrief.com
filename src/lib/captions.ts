@@ -1,10 +1,7 @@
 import { Video, YouTubeCaptionTrack } from "./types";
 import { getStoredCaptions, storeCaptions } from "./supabase";
-import { HttpsProxyAgent } from "https-proxy-agent";
 import fetch from "node-fetch";
-
-const username = "flowfusion_IahFh";
-const password = process.env.OXYLABS_PASSWORD;
+import { getTranscript } from "@/lib/youtube-transcript-api-ts";
 
 interface CaptionData {
   transcript: string;
@@ -71,28 +68,9 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
       url: video.url,
     });
 
-    // Advanced proxy solutions - Web Unblocker
-    // https://developers.oxylabs.io/advanced-proxy-solutions/web-unblocker/getting-started
-    const agent = new HttpsProxyAgent(
-      `https://${username}:${password}@unblock.oxylabs.io:60000`
-    );
+    const htmlContent = await getTranscript(video.id);
 
-    // Ignore the certificate
-    process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
-
-    const response = await fetch(video.url, {
-      agent: agent,
-      method: "GET",
-      headers: {
-        "x-oxylabs-render": "html",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch video page: ${response.status}`);
-    }
-
-    const htmlContent = await response.text();
+    console.log("🔍 HTML content:", htmlContent);
 
     // Log all the HTML content's meta tags
     console.log(
