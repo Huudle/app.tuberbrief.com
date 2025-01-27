@@ -1,7 +1,6 @@
-import { Video, YouTubeCaptionTrack } from "./types";
+import { Video } from "./types";
 import { getStoredCaptions, storeCaptions } from "./supabase";
-import fetch from "node-fetch";
-import { getTranscript } from "@/lib/youtube-transcript-api-ts";
+import { getTranscript, TranscriptSegment } from "@/lib/supadata";
 
 interface CaptionData {
   transcript: string;
@@ -9,6 +8,7 @@ interface CaptionData {
   duration: number;
 }
 
+/*
 const parseXMLCaptions = (xmlContent: string): string => {
   try {
     const captionLines = xmlContent.match(/<text[^>]*>(.*?)<\/text>/g) || [];
@@ -33,7 +33,9 @@ const parseXMLCaptions = (xmlContent: string): string => {
     return "";
   }
 };
+*/
 
+/*
 const findBestCaptionTrack = (
   tracks: YouTubeCaptionTrack[],
   defaultLanguage = "en"
@@ -60,6 +62,7 @@ const findBestCaptionTrack = (
     tracks[0]
   );
 };
+*/
 
 const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
   try {
@@ -68,7 +71,21 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
       url: video.url,
     });
 
-    const htmlContent = await getTranscript(video.id);
+    const transcriptResponse = await getTranscript(video.id, { text: true });
+    const transcriptSegments =
+      transcriptResponse?.content as TranscriptSegment[];
+
+    const content = transcriptSegments.map((segment) => segment.text).join(" ");
+    console.log("🔍 Content:", content);
+    const language = transcriptResponse.lang;
+
+    return {
+      transcript: content,
+      language: language,
+      duration: 0,
+    };
+
+    /*
 
     console.log("🔍 HTML content:", htmlContent);
 
@@ -131,6 +148,7 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
       language: selectedTrack.languageCode || "en",
       duration: 0,
     };
+    */
   } catch (error) {
     console.error("💥 Caption fetcher error:", (error as Error).message);
     return null;
