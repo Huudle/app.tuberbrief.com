@@ -8,6 +8,7 @@ import { YouTubeQueueMessage, PGMQMessage, Video } from "@/lib/types";
 import { fetchCaptions } from "@/lib/captions";
 import { generateEmailTemplate } from "@/lib/email-template";
 import { generateVideoSummary } from "@/lib/ai-processor";
+import { managePubSubHubbub } from "@/lib/pubsub";
 
 const QUEUE_NAME = "youtube_data_queue";
 const POLLING_INTERVAL = 5000;
@@ -71,13 +72,34 @@ export class QueueWorker {
         published: message.published,
       });
 
+      const deleteMessage = async () => {
+        await this.supabasePGMQ.rpc("delete", {
+          queue_name: QUEUE_NAME,
+          msg_id: queueMessage?.msg_id,
+        });
+      };
+
+      // If message.channelId is not found in the profile_youtube_channels table, delete the message, unsubscribe the channel and return
+      const { data: channelData } = await this.supabasePublic
+        .from("profile_youtube_channels")
+        .select("profile_id")
+        .eq("youtube_channel_id", message.channelId);
+      if (!channelData) {
+        console.log("ℹ️ Skipping processing due to non subscribed channel");
+        await deleteMessage();
+        // Unsubscribe the channel
+        console.log("🔍 Unsubscribing from channel:", message.channelId);
+        await managePubSubHubbub({
+          channelId: message.channelId,
+          mode: "unsubscribe",
+        });
+        return;
+      }
+
       // If videoId or channelId is empty, delete the message and return
       if (!message.videoId || !message.channelId) {
         console.log("ℹ️ Skipping processing due to empty videoId or channelId");
-        await this.supabasePGMQ.rpc("delete", {
-          queue_name: QUEUE_NAME,
-          msg_id: queueMessage.msg_id,
-        });
+        await deleteMessage();
         return;
       }
 
@@ -88,10 +110,7 @@ export class QueueWorker {
       // If captions are empty, delete the message and return
       if (!captions) {
         console.log("ℹ️ Skipping processing due to empty captions");
-        await this.supabasePGMQ.rpc("delete", {
-          queue_name: QUEUE_NAME,
-          msg_id: queueMessage.msg_id,
-        });
+        await deleteMessage();
         return;
       }
 
