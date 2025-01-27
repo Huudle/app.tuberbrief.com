@@ -79,12 +79,13 @@ export class QueueWorker {
         });
       };
 
+      console.log("🔍 Checking if channel is subscribed");
       // If message.channelId is not found in the profile_youtube_channels table, delete the message, unsubscribe the channel and return
       const { data: channelData } = await this.supabasePublic
         .from("profile_youtube_channels")
         .select("profile_id")
         .eq("youtube_channel_id", message.channelId);
-      if (!channelData) {
+      if (channelData?.length === 0) {
         console.log("ℹ️ Skipping processing due to non subscribed channel");
         await deleteMessage();
         // Unsubscribe the channel
@@ -94,6 +95,8 @@ export class QueueWorker {
           mode: "unsubscribe",
         });
         return;
+      } else {
+        console.log("🔍 Channel is subscribed" + message.channelId);
       }
 
       // If videoId or channelId is empty, delete the message and return
