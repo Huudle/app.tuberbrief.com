@@ -177,7 +177,7 @@ export default function PlanPage() {
               <CardContent>
                 <div className="space-y-4">
                   <div className="text-2xl font-bold">
-                    {plan.limit} {plan.limit === 1 ? "channel" : "channels"}
+                    {plan.limit} channels
                   </div>
                   <ul className="space-y-2.5 text-sm">
                     {plan.features.map((feature) => (
