@@ -2,25 +2,19 @@
 
 ## Free Tier
 
-- Up to 1 YouTube channel
-- Daily digest (instead of instant notifications)
-- Full transcripts included
-- Basic AI summary (1 sentence)
+- Up to 3 YouTube channel
+- Advanced AI summary
 
 ## Basic Plan ($5/month)
 
-- Instant notifications
-- Up to 5 YouTube channels
-- Full transcripts included
-- Advanced AI summary (Multiple sentences)
+- Up to 10 YouTube channels
+- Advanced AI summary
 - Key points (bullet points)
 
 ## Pro Plan ($15/month)
 
-- Up to 15 YouTube channels
-- Instant notifications
-- Full transcripts included
-- Advanced AI summary (Multiple sentences)
+- Up to 35 YouTube channels
+- Advanced AI summary
 - Key points (bullet points)
 - Custom notification styles
 - Webhooks
@@ -32,7 +26,7 @@
 
 | Feature              | Free  | Basic    | Pro      |
 | -------------------- | ----- | -------- | -------- |
-| YouTube Channels     | 1     | 5        | 15       |
+| YouTube Channels     | 3     | 10       | 35       |
 | Notifications        | Daily | Instant  | Instant  |
 | Full Transcript      | ✅    | ✅       | ✅       |
 | Key points           | ❌    | ✅       | ✅       |
