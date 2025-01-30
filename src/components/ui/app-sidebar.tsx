@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
-import { Settings2, Youtube } from "lucide-react";
+import { Settings2, Youtube, CreditCard } from "lucide-react";
 
 import { NavMain } from "@/components/ui/nav-main";
 import { NavUser } from "@/components/ui/nav-user";
@@ -26,16 +26,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       url: "/dashboard/channels",
       icon: Youtube,
       isActive: pathname.startsWith("/dashboard/channels"),
-      items: [
-        {
-          title: "List",
-          url: "/dashboard/channels",
-        },
-        {
-          title: "Add",
-          url: "/dashboard/channels/new",
-        },
-      ],
+      items: [],
+    },
+    {
+      title: "Plan",
+      url: "/dashboard/plan",
+      icon: CreditCard,
+      isActive: pathname.startsWith("/dashboard/plan"),
+      items: [],
     },
     {
       title: "Settings",
@@ -50,10 +48,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {
           title: "Profile",
           url: "/dashboard/settings/profile",
-        },
-        {
-          title: "Plan",
-          url: "/dashboard/settings/plan",
         },
       ],
     },
