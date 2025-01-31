@@ -169,7 +169,6 @@ export default function ChannelsPage() {
       <AppLayout
         breadcrumbs={[
           { label: "YouTube Channels", href: "/dashboard" },
-          { label: "List", active: true },
         ]}
       >
         <div className="flex justify-between items-center mb-6">
@@ -194,7 +193,6 @@ export default function ChannelsPage() {
       <AppLayout
         breadcrumbs={[
           { label: "YouTube Channels", href: "/dashboard" },
-          { label: "List", active: true },
         ]}
       >
         <div className="flex justify-between items-center mb-6">
@@ -213,7 +211,6 @@ export default function ChannelsPage() {
     <AppLayout
       breadcrumbs={[
         { label: "YouTube Channels", href: "/dashboard" },
-        { label: "List", active: true },
       ]}
     >
       <div className="flex justify-between items-center mb-6">
