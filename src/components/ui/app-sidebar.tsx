@@ -29,7 +29,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       items: [],
     },
     {
-      title: "Plan",
+      title: "Plans",
       url: "/dashboard/plan",
       icon: CreditCard,
       isActive: pathname.startsWith("/dashboard/plan"),
