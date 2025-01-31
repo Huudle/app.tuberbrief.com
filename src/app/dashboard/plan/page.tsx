@@ -74,13 +74,12 @@ export default function PlanPage() {
     return (
       <AppLayout
         breadcrumbs={[
-          { label: "Settings", href: "/dashboard/settings" },
-          { label: "Plan", active: true },
+          { label: "Plans", active: true },
         ]}
       >
         <div className="w-full max-w-5xl space-y-6">
           <div>
-            <h1 className="text-2xl font-bold">Plan Settings</h1>
+            <h1 className="text-2xl font-bold">Plans</h1>
             <p className="text-sm text-muted-foreground">
               Choose the plan that best fits your needs
             </p>
@@ -118,13 +117,12 @@ export default function PlanPage() {
   return (
     <AppLayout
       breadcrumbs={[
-        { label: "Settings", href: "/dashboard/settings" },
-        { label: "Plan", active: true },
+        { label: "Plans", active: true },
       ]}
     >
       <div className="w-full max-w-5xl space-y-6">
         <div>
-          <h1 className="text-2xl font-bold">Plan Settings</h1>
+          <h1 className="text-2xl font-bold">Plans</h1>
           <p className="text-sm text-muted-foreground">
             Choose the plan that best fits your needs{" "}
             <span className="text-yellow-600">
