@@ -24,10 +24,16 @@ export default function Home() {
 
         <div className="flex gap-4 items-center flex-col sm:flex-row mt-8">
           <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-8 sm:px-10"
+            className="rounded-md border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-8 sm:px-10"
             href="/login"
           >
-            Get Started
+            Sign in
+          </a>
+          <a
+            className="rounded-md border border-solid border-foreground transition-colors flex items-center justify-center text-foreground gap-2 hover:bg-gray-100 dark:hover:bg-gray-800 text-sm sm:text-base h-10 sm:h-12 px-8 sm:px-10"
+            href="/login"
+          >
+            Login
           </a>
         </div>
       </main>
