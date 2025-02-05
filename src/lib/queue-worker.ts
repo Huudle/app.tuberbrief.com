@@ -129,7 +129,8 @@ export class QueueWorker {
             title: message.title,
             url: `https://youtube.com/watch?v=${message.videoId}`,
           } as Video,
-          captions
+          captions.transcript,
+          captions.language
         );
 
         if (aiSummary) {
