@@ -78,6 +78,7 @@ export interface CaptionData {
   transcript: string;
   language: string;
   title?: string;
+  duration: number;
 }
 
 export interface PGMQMessage<T> {

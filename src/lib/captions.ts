@@ -1,12 +1,7 @@
-import { Video } from "./types";
-import { getStoredCaptions, storeCaptions } from "./supabase";
+import { Video } from "@/lib/types";
+import { getStoredCaptions, storeCaptions } from "@/lib/supabase";
 import { getTranscript } from "@/lib/supadata";
-
-interface CaptionData {
-  transcript: string;
-  language: string;
-  duration: number;
-}
+import { CaptionData } from "@/lib/types";
 
 /*
 const parseXMLCaptions = (xmlContent: string): string => {
@@ -83,7 +78,7 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
     */
     if (!transcriptResponse) {
       console.log("⚠️ No transcript is available for this video");
-      return null
+      return null;
     }
 
     const content = transcriptResponse?.content as string;
@@ -168,14 +163,14 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
 export async function fetchCaptions(
   videoId: string,
   title?: string
-): Promise<string | null> {
+): Promise<CaptionData | null> {
   console.log("🎥 Fetching captions for video:", videoId);
 
   try {
     const storedCaptions = await getStoredCaptions(videoId);
     if (storedCaptions) {
       console.log("📚 Using stored captions for:", videoId);
-      return storedCaptions.transcript;
+      return storedCaptions;
     }
 
     const video = {
@@ -193,9 +188,10 @@ export async function fetchCaptions(
       transcript: captionData.transcript,
       language: captionData.language,
       title: title,
+      duration: 0,
     });
 
-    return captionData.transcript;
+    return captionData;
   } catch (error) {
     console.error("❌ Error fetching captions:", error);
     throw new Error(
