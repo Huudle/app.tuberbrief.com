@@ -110,6 +110,7 @@ export class QueueWorker {
 
       // Fetch video captions
       const captions = await fetchCaptions(message.videoId, message.title);
+      console.log("🔍 Captions:", captions);
       // If captions are empty, delete the message and return
       if (!captions) {
         console.log("ℹ️ Skipping processing due to empty captions");
