@@ -378,6 +378,7 @@ export async function getStoredCaptions(
     transcript: data.transcript,
     language: data.language,
     title: data.title,
+    duration: 0,
   };
 }
 
