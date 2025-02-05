@@ -1,9 +1,11 @@
+import { CaptionData } from "@/lib/types";
+
 interface EmailTemplateParams {
   videoTitle: string;
   channelName: string;
   publishedAt: string;
   videoId: string;
-  captions: string;
+  captions: CaptionData;
   summary?: {
     briefSummary?: string;
     keyPoints?: string[];
@@ -64,10 +66,10 @@ export function generateEmailTemplate({
   }
 
   ${
-    showTranscript && captions
+    showTranscript && captions?.transcript
       ? `
   <div style="margin: 35px 0; padding: 0;">
-    <p style="margin: 0;">${captions}</p>
+    <p style="margin: 0;">${captions.transcript}</p>
   </div>
   `
       : ""
