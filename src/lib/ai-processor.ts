@@ -33,7 +33,7 @@ Please analyze this YouTube video transcript and provide:
 2. Key points or takeaways (3-5 bullet points)
 
 Important: 
-- Provide the response in ${language === "tr" ? "Turkish" : "English"} language
+- Provide the response in "${language}" language
 - Format your response strictly as a JSON object with these exact fields:
   {
     "briefSummary": "your summary here",
@@ -51,9 +51,7 @@ ${transcript}
       messages: [
         {
           role: "system",
-          content: `You are a skilled content analyzer. Provide concise, informative summaries in ${
-            language === "tr" ? "Turkish" : "English"
-          } language. Always format your response as a valid JSON object.`,
+          content: `You are a skilled content analyzer. Provide concise, informative summaries in "${language}" language. Always format your response as a valid JSON object.`,
         },
         {
           role: "user",
