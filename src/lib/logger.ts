@@ -203,12 +203,18 @@ class Logger {
       const opts = { ...defaultOptions, ...options };
       const formattedMessage = this.formatMessage(message, opts);
 
-      if (!this.fallbackConsole) {
-        this.writeToFile(formattedMessage);
+      // Always write to console when running under PM2
+      if (
+        this.isDevelopment ||
+        this.fallbackConsole ||
+        this.isRunningUnderPM2
+      ) {
+        this.consoleOutput(opts.level || "info", formattedMessage);
       }
 
-      if (this.isDevelopment || this.fallbackConsole) {
-        this.consoleOutput(opts.level || "info", formattedMessage);
+      // Still write to file for persistence
+      if (!this.fallbackConsole) {
+        this.writeToFile(formattedMessage);
       }
     } catch (error) {
       // Last resort error handling
