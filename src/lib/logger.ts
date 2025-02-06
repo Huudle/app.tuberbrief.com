@@ -12,7 +12,8 @@ interface LogOptions {
 
 const defaultOptions: LogOptions = {
   level: "info",
-  timestamp: true,
+  // Only add timestamp if not running under PM2
+  timestamp: !process.env.PM2_HOME,
   prefix: "",
 };
 
@@ -28,6 +29,7 @@ const colors = {
 class Logger {
   private static instance: Logger;
   private isDevelopment: boolean = false;
+  private isRunningUnderPM2: boolean = false;
   private logDir: string = "";
   private currentLogFile: string = "";
   private fallbackConsole: boolean = false;
@@ -35,6 +37,7 @@ class Logger {
   private constructor() {
     try {
       this.isDevelopment = process.env.NODE_ENV !== "production";
+      this.isRunningUnderPM2 = !!process.env.PM2_HOME;
       this.logDir = path.join(process.cwd(), "logs");
       this.initializeLogDirectory();
       this.currentLogFile = this.getLogFilePath();
@@ -59,12 +62,13 @@ class Logger {
     options?: LogOptions
   ): void {
     try {
-      const color = colors[level] || colors.info;
-      const formattedMessage = this.formatMessage(message, {
-        ...options,
-        level,
-      });
-      console.log(`${color}${formattedMessage}${colors.reset}`);
+      // Only add colors if not running under PM2
+      if (this.isRunningUnderPM2) {
+        console.log(message);
+      } else {
+        const color = colors[level] || colors.info;
+        console.log(`${color}${message}${colors.reset}`);
+      }
     } catch (error) {
       // Last resort fallback
       console.log(
@@ -143,9 +147,12 @@ class Logger {
       const opts = { ...defaultOptions, ...options };
       const parts = [];
 
-      if (opts.timestamp) parts.push(`[${this.getTimestamp()}]`);
-      if (opts.level) parts.push(`[${opts.level.toUpperCase()}]`);
-      if (opts.prefix) parts.push(`[${opts.prefix}]`);
+      // Only add these parts if not running under PM2
+      if (!this.isRunningUnderPM2) {
+        if (opts.timestamp) parts.push(`[${this.getTimestamp()}]`);
+        if (opts.level) parts.push(`[${opts.level.toUpperCase()}]`);
+        if (opts.prefix) parts.push(`[${opts.prefix}]`);
+      }
 
       const messageStr =
         message instanceof Error
