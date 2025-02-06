@@ -16,14 +16,6 @@ const defaultOptions: LogOptions = {
   prefix: "",
 };
 
-// ANSI color codes for different log levels
-const colors = {
-  debug: "\x1b[34m", // Blue
-  info: "\x1b[32m", // Green
-  warn: "\x1b[33m", // Yellow
-  error: "\x1b[31m", // Red
-  reset: "\x1b[0m", // Reset
-};
 
 class Logger {
   private static instance: Logger;
