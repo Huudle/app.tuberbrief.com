@@ -9,6 +9,7 @@ import { fetchCaptions } from "@/lib/captions";
 import { generateEmailTemplate } from "@/lib/email-template";
 import { generateVideoSummary } from "@/lib/ai-processor";
 import { managePubSubHubbub } from "@/lib/pubsub";
+import { logger } from "@/lib/logger";
 
 const QUEUE_NAME = "youtube_data_queue";
 const POLLING_INTERVAL = 5000;
@@ -22,54 +23,61 @@ export class QueueWorker {
 
   async start() {
     this.isRunning = true;
-    console.log("🎬 Starting queue worker");
+    logger.info("🎬 Starting queue worker", { prefix: "Queue" });
 
     while (this.isRunning) {
       try {
         await this.processNextMessage();
         await new Promise((resolve) => setTimeout(resolve, POLLING_INTERVAL));
       } catch (error) {
-        console.error("💥 Queue worker error:", error);
+        logger.error("💥 Queue worker error", {
+          prefix: "Queue",
+          data: {
+            error: error instanceof Error ? error.message : "Unknown error",
+            stack: error instanceof Error ? error.stack : undefined,
+          },
+        });
       }
     }
   }
 
   stop() {
     this.isRunning = false;
-    console.log("🛑 Stopping queue worker");
+    logger.info("🛑 Stopping queue worker", { prefix: "Queue" });
   }
 
   private async processNextMessage() {
-    // Track the popped message for potential re-queueing
     let queueMessage: PGMQMessage<YouTubeQueueMessage> | null = null;
     try {
-      // Pop a message from the queue - this both retrieves and removes the message atomically
-      console.log("🔍 Popping message from queue");
+      logger.info("🔍 Popping message from queue", { prefix: "Queue" });
+
       const { data: messages, error: popError } = await this.supabasePGMQ.rpc(
         "pop",
-        {
-          queue_name: QUEUE_NAME,
-        }
+        { queue_name: QUEUE_NAME }
       );
+
       if (popError) {
         throw new Error(`Queue pop error: ${popError.message}`);
       }
       if (!messages || messages.length === 0) {
-        return; // No messages to process
+        return;
       }
 
-      // Extract message and prepare for processing
       queueMessage = messages[0] as PGMQMessage<YouTubeQueueMessage>;
       const message = queueMessage.message;
-      console.log("📦 Processing message:", {
-        msgId: queueMessage.msg_id,
-        readCount: queueMessage.read_ct,
-        enqueuedAt: queueMessage.enqueued_at,
-        videoId: message.videoId,
-        channelId: message.channelId,
-        authorName: message.authorName,
-        title: message.title,
-        published: message.published,
+
+      logger.info("📦 Processing message", {
+        prefix: "Queue",
+        data: {
+          msgId: queueMessage.msg_id,
+          readCount: queueMessage.read_ct,
+          enqueuedAt: queueMessage.enqueued_at,
+          videoId: message.videoId,
+          channelId: message.channelId,
+          authorName: message.authorName,
+          title: message.title,
+          published: message.published,
+        },
       });
 
       const deleteMessage = async () => {
@@ -79,41 +87,64 @@ export class QueueWorker {
         });
       };
 
-      console.log("🔍 Checking if channel is subscribed");
-      // If message.channelId is not found in the profile_youtube_channels table, delete the message, unsubscribe the channel and return
+      logger.debug("🔍 Checking if channel is subscribed", {
+        prefix: "Queue",
+        data: { channelId: message.channelId },
+      });
+
       const { data: channelData } = await this.supabasePublic
         .from("profile_youtube_channels")
         .select("profile_id")
         .eq("youtube_channel_id", message.channelId);
+
       if (channelData?.length === 0) {
-        console.log("ℹ️ Skipping processing due to non subscribed channel");
+        logger.info("ℹ️ Skipping processing - channel not subscribed", {
+          prefix: "Queue",
+          data: { channelId: message.channelId },
+        });
         await deleteMessage();
-        // Unsubscribe the channel
-        console.log("🔍 Unsubscribing from channel:", message.channelId);
+
+        logger.info("🔍 Unsubscribing from channel", {
+          prefix: "Queue",
+          data: { channelId: message.channelId },
+        });
         await managePubSubHubbub({
           channelId: message.channelId,
           mode: "unsubscribe",
         });
         return;
-      } else {
-        console.log("🔍 Channel is subscribed" + message.channelId);
       }
 
-      // If videoId or channelId is empty, delete the message and return
+      logger.debug("🔍 Channel is subscribed", {
+        prefix: "Queue",
+        data: { channelId: message.channelId },
+      });
+
       if (!message.videoId || !message.channelId) {
-        console.log("ℹ️ Skipping processing due to empty videoId or channelId");
+        logger.warn("🔍 Skipping processing - missing videoId or channelId", {
+          prefix: "Queue",
+          data: { videoId: message.videoId, channelId: message.channelId },
+        });
         await deleteMessage();
         return;
       }
 
-      console.log("📦 Starting processing at:", new Date().toISOString());
+      logger.info("🚀 Starting processing", {
+        prefix: "Queue",
+        data: { timestamp: new Date().toISOString() },
+      });
 
-      // Fetch video captions
       const captions = await fetchCaptions(message.videoId, message.title);
-      console.log("🔍 Captions:", captions);
-      // If captions are empty, delete the message and return
+      logger.debug("🔍 Captions fetched", {
+        prefix: "Queue",
+        data: { videoId: message.videoId, hasCaptions: !!captions },
+      });
+
       if (!captions) {
-        console.log("ℹ️ Skipping processing due to empty captions");
+        logger.info("🔍 Skipping processing - no captions available", {
+          prefix: "Queue",
+          data: { videoId: message.videoId },
+        });
         await deleteMessage();
         return;
       }
@@ -173,11 +204,17 @@ export class QueueWorker {
         .select("profile_id")
         .eq("youtube_channel_id", message.channelId);
       if (!subscribers) {
-        console.log("ℹ️ No subscribers found for channel");
+        logger.info("🔍 No subscribers found for channel", {
+          prefix: "Queue",
+          data: { channelId: message.channelId },
+        });
         return;
       }
       // Log the subscribers
-      console.log("👥 Subscribers:", subscribers);
+      logger.info("👥 Subscribers", {
+        prefix: "Queue",
+        data: { total: subscribers.length },
+      });
       // Check existing notifications
       const { data: existingNotifications } = await this.supabasePublic
         .from("email_notifications")
@@ -191,12 +228,18 @@ export class QueueWorker {
       const existingProfileIds = new Set(
         existingNotifications?.map((n) => n.profile_id) || []
       );
-      console.log("🔍 Existing profile IDs:", existingProfileIds);
+      logger.info("🔍 Existing profile IDs", {
+        prefix: "Queue",
+        data: { total: existingProfileIds.size },
+      });
       const newSubscribers = subscribers.filter(
         (sub) => !existingProfileIds.has(sub.profile_id)
       );
       if (newSubscribers.length === 0) {
-        console.log("ℹ️ All subscribers already notified");
+        logger.info("🔍 All subscribers already notified", {
+          prefix: "Queue",
+          data: { channelId: message.channelId },
+        });
         return;
       }
       // Create notifications with AI-enhanced content
@@ -209,33 +252,63 @@ export class QueueWorker {
         status: "pending",
         created_at: new Date().toISOString(),
       }));
-      console.log("📧 Creating notifications:", {
-        total: subscribers.length,
-        new: newSubscribers.length,
-        existing: existingProfileIds.size,
+      logger.info("📧 Creating notifications", {
+        prefix: "Queue",
+        data: {
+          total: subscribers.length,
+          new: newSubscribers.length,
+          existing: existingProfileIds.size,
+        },
       });
       const { error: notificationError } = await this.supabasePublic
         .from("email_notifications")
         .insert(notifications);
       if (notificationError) {
-        console.error("❌ Failed to save notifications:", notificationError);
+        logger.error("❌ Failed to save notifications", {
+          prefix: "Queue",
+          data: {
+            error:
+              notificationError instanceof Error
+                ? notificationError.message
+                : "Unknown error",
+          },
+        });
         throw notificationError;
       }
-      console.log("✅ Successfully processed video:", message.videoId);
+      logger.info("✅ Successfully processed video", {
+        prefix: "Queue",
+        data: { videoId: message.videoId },
+      });
     } catch (error) {
-      // Error handling and re-queue mechanism
-      console.error("💥 Error processing message:", error);
+      logger.error("💥 Error processing message", {
+        prefix: "Queue",
+        data: {
+          error: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+          messageId: queueMessage?.msg_id,
+          videoId: queueMessage?.message.videoId,
+        },
+      });
 
-      // Only attempt to re-queue if we successfully popped a message
       if (queueMessage) {
         const { error: requeueError } = await this.supabasePGMQ.rpc("send", {
           queue_name: QUEUE_NAME,
           message: queueMessage.message,
         });
+
         if (requeueError) {
-          console.error("❌ Failed to re-queue message:", requeueError);
+          logger.error("❌ Failed to re-queue message", {
+            prefix: "Queue",
+            data: {
+              error: requeueError,
+              messageId: queueMessage.msg_id,
+            },
+          });
         } else {
-          console.log("♻️ Message re-queued successfully");
+          logger.info("♻️ Message re-queued successfully", {
+            prefix: "Queue",
+            data: { messageId: queueMessage.msg_id },
+          });
         }
       }
     }
