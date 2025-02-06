@@ -1,6 +1,7 @@
 import xml2js from "xml2js";
 import puppeteer from "puppeteer-core";
 import chromium from "@sparticuz/chromium";
+import { logger } from "@/lib/logger";
 
 const getBrowser = async () => {
   // For development
@@ -46,7 +47,9 @@ async function scrapeChannelInfo(channelName: string) {
     // Set viewport
     await page.setViewport({ width: 1280, height: 720 });
 
-    console.log(`Navigating to: https://www.youtube.com/@${channelName}`);
+    logger.info(`Navigating to: https://www.youtube.com/@${channelName}`, {
+      prefix: "YouTube Scraper",
+    });
 
     // Navigate to the channel page
     const response = await page.goto(
@@ -70,7 +73,9 @@ async function scrapeChannelInfo(channelName: string) {
         page.waitForSelector('meta[itemprop="channelId"]', { timeout: 15000 }),
       ]);
     } catch (error) {
-      console.log("Timeout waiting for selectors, checking URL...");
+      logger.info("Timeout waiting for selectors, checking URL...", {
+        prefix: "YouTube Scraper",
+      });
       // If selectors aren't found, try to get info from URL
       const currentUrl = page.url();
       if (currentUrl.includes("/channel/")) {
@@ -124,7 +129,10 @@ async function scrapeChannelInfo(channelName: string) {
       ? channelInfo.url.split("/channel/")[1].split("/")[0]
       : channelInfo.url.split("/").pop();
 
-    console.log("Successfully scraped channel info:", channelInfo);
+    logger.info("Successfully scraped channel info:", {
+      prefix: "YouTube Scraper",
+      data: channelInfo,
+    });
 
     return {
       success: true,
@@ -140,7 +148,10 @@ async function scrapeChannelInfo(channelName: string) {
       },
     };
   } catch (error) {
-    console.error("Scraping error:", error);
+    logger.error("Scraping error:", {
+      prefix: "YouTube Scraper",
+      data: { error: error instanceof Error ? error.message : "Unknown error" },
+    });
     throw new Error(
       `Failed to scrape channel info: ${(error as Error).message}`
     );
@@ -174,13 +185,17 @@ async function extractChannelIdFromHtml(channelName: string) {
 
     // If custom URL fails, try other formats as fallback
     if (response.status === 404 && !channelName.startsWith("@")) {
-      console.log("Custom URL not found, trying @username format...");
+      logger.info("Custom URL not found, trying @username format...", {
+        prefix: "YouTube Resolver",
+      });
       url = `https://www.youtube.com/@${channelNameWithoutAt}`;
       const retryResponse = await fetch(url);
 
       // If @username fails, try plain username format
       if (retryResponse.status === 404) {
-        console.log("@username not found, trying plain username format...");
+        logger.info("@username not found, trying plain username format...", {
+          prefix: "YouTube Resolver",
+        });
         url = `https://www.youtube.com/${channelNameWithoutAt}`;
         const finalResponse = await fetch(url);
 
@@ -213,7 +228,10 @@ async function extractChannelIdFromHtml(channelName: string) {
 
     return await handleChannelPage(response, channelName);
   } catch (error) {
-    console.error("Failed to extract channel info from HTML:", error);
+    logger.error("Failed to extract channel info from HTML:", {
+      prefix: "YouTube Resolver",
+      data: { error: error instanceof Error ? error.message : "Unknown error" },
+    });
     throw error;
   }
 }
@@ -280,15 +298,18 @@ async function handleChannelPage(response: Response, channelName: string) {
 
   const subscribers = subscriberMatch?.[1] || subscriberMatch?.[2];
 
-  console.log("📺 Channel info extracted from HTML:", {
-    channelId,
-    title,
-    url: canonicalUrl,
-    thumbnail,
-    subscribers,
-    views: null,
-    latestVideo: null,
-    published: null,
+  logger.info("📺 Channel info extracted from HTML:", {
+    prefix: "YouTube Scraper",
+    data: {
+      channelId,
+      title,
+      url: canonicalUrl,
+      thumbnail,
+      subscribers,
+      views: null,
+      latestVideo: null,
+      published: null,
+    },
   });
 
   return {
@@ -316,11 +337,15 @@ async function fetchChannelFeed(channelName: string) {
 
     // Return 404 if the channel is not found
     if (response.status === 404) {
-      console.log("XML feed not found, trying HTML extraction...");
+      logger.info("XML feed not found, trying HTML extraction...", {
+        prefix: "YouTube Feed",
+      });
       try {
         return await extractChannelIdFromHtml(channelNameWithoutAt);
       } catch {
-        console.log("HTML extraction failed, falling back to scraping...");
+        logger.info("HTML extraction failed, falling back to scraping...", {
+          prefix: "YouTube Feed",
+        });
         return await scrapeChannelInfo(channelNameWithoutAt);
       }
     }
@@ -357,7 +382,10 @@ async function fetchChannelFeed(channelName: string) {
     // "https://www.youtube.com/channel/UCW5wxEjGHWNyatgZe-PU_tA"
     // This is uri and the id is the last part of the url which is UCW5wxEjGHWNyatgZe-PU_tA
     const channelIdOnly = uri.split("/").pop();
-    console.log(" Channel id is fetched from xml feed", channelIdOnly);
+    logger.info("Channel id is fetched from xml feed", {
+      prefix: "YouTube Feed",
+      data: { channelId: channelIdOnly },
+    });
     return {
       success: true,
       data: {
@@ -372,14 +400,19 @@ async function fetchChannelFeed(channelName: string) {
       },
     };
   } catch (error) {
-    console.error("XML feed failed with error:", error);
+    logger.error("XML feed failed with error:", {
+      prefix: "YouTube Feed",
+      data: { error: error instanceof Error ? error.message : "Unknown error" },
+    });
 
     // Try HTML extraction before puppeteer
     try {
-      console.log("Trying HTML extraction...");
+      logger.info("Trying HTML extraction...", { prefix: "YouTube Feed" });
       return await extractChannelIdFromHtml(channelName);
     } catch {
-      console.log("HTML extraction failed, falling back to scraping...");
+      logger.info("HTML extraction failed, falling back to scraping...", {
+        prefix: "YouTube Feed",
+      });
       return await scrapeChannelInfo(channelName);
     }
   }
@@ -397,7 +430,10 @@ export async function GET(request: Request) {
     const result = await fetchChannelFeed(channelName);
     return Response.json(result.data);
   } catch (error) {
-    console.error("Error fetching channel info:", error);
+    logger.error("Error fetching channel info:", {
+      prefix: "YouTube API",
+      data: { error: error instanceof Error ? error.message : "Unknown error" },
+    });
     return Response.json({
       success: false,
       error:

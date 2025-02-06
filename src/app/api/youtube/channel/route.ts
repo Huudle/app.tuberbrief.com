@@ -3,6 +3,7 @@ import {
   createOrUpdateChannel,
   updateChannelProcessingStatus,
 } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 
 const YOUTUBE_API_BASE = "https://www.googleapis.com/youtube/v3";
 
@@ -33,7 +34,12 @@ async function fetchWithRetry(
       return await response.json();
     } catch (error) {
       lastError = error as Error;
-      console.log(`🔄 Retry attempt ${i + 1} of ${retry}`);
+      logger.warn(`Retry attempt ${i + 1} of ${retry}`, {
+        prefix: "YouTube API",
+        data: {
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      });
       if (i < retry - 1) {
         await new Promise((resolve) =>
           setTimeout(resolve, retryDelay * (i + 1))
@@ -52,12 +58,12 @@ export async function GET(request: Request) {
     const profileId = searchParams.get("profileId");
 
     if (!channelId) {
-      console.log("❌ Error: ChannelId is required");
+      logger.error("ChannelId is required", { prefix: "YouTube API" });
       return Response.json({ success: false, error: "ChannelId is required" });
     }
 
     if (!profileId) {
-      console.log("❌ Error: ProfileId is required");
+      logger.error("ProfileId is required", { prefix: "YouTube API" });
       return Response.json({ success: false, error: "ProfileId is required" });
     }
 
@@ -66,20 +72,35 @@ export async function GET(request: Request) {
       if (!result.success) return Response.json(result);
 
       // Start background processing
-      processChannel(channelId, profileId).catch(console.error);
+      processChannel(channelId, profileId).catch((error) => {
+        logger.error("Background processing error", {
+          prefix: "YouTube API",
+          data: {
+            error: error instanceof Error ? error.message : "Unknown error",
+          },
+        });
+      });
       return Response.json({
         success: true,
         message: "Channel processing started",
       });
     } catch (error) {
-      console.error("💥 Error getting background data:", error);
+      logger.error("Error getting background data", {
+        prefix: "YouTube API",
+        data: {
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      });
       return Response.json({
         success: false,
         error: "Failed to process channel",
       });
     }
   } catch (error) {
-    console.error("💥 Critical error:", error);
+    logger.error("Critical error", {
+      prefix: "YouTube API",
+      data: { error: error instanceof Error ? error.message : "Unknown error" },
+    });
     return Response.json({
       success: false,
       error: "Failed to fetch channel info",
@@ -89,38 +110,47 @@ export async function GET(request: Request) {
 
 async function processChannel(channelId: string, profileId: string) {
   const startTime = performance.now();
-  console.log("🎬 Starting channel processing for:", channelId);
-  console.log("⚙️ Parameters:", { channelId, profileId });
+  logger.info("Starting channel processing", {
+    prefix: "YouTube API",
+    data: { channelId, profileId },
+  });
 
   try {
     // Get channel details
-    console.log("📡 Fetching channel details from YouTube API...");
+    logger.info("Fetching channel details from YouTube API", {
+      prefix: "YouTube API",
+    });
     const channelUrl = new URL(`${YOUTUBE_API_BASE}/channels`);
     channelUrl.searchParams.append("part", "snippet,statistics");
     channelUrl.searchParams.append("id", channelId);
     channelUrl.searchParams.append("key", process.env.YOUTUBE_API_KEY!);
 
     const channelResponse = await fetchWithRetry(channelUrl.toString());
-    console.log("📊 Channel data:", JSON.stringify(channelResponse, null, 2));
+    logger.debug("Channel data received", {
+      prefix: "YouTube API",
+      data: channelResponse,
+    });
 
     const channelData = channelResponse.items[0];
     if (!channelData) {
       throw new Error("No channel data found");
     }
 
-    console.log("📊 Extracted channel data:", {
-      title: channelData.snippet.title,
-      subscribers: channelData.statistics.subscriberCount,
-      customUrl: channelData.snippet.customUrl,
+    logger.info("Channel data extracted", {
+      prefix: "YouTube API",
+      data: {
+        title: channelData.snippet.title,
+        subscribers: channelData.statistics.subscriberCount,
+        customUrl: channelData.snippet.customUrl,
+      },
     });
-    console.log(
-      "⏱️ Channel data fetched:",
-      performance.now() - startTime,
-      "ms"
-    );
+    logger.debug("Channel data fetch duration", {
+      prefix: "YouTube API",
+      data: { duration: `${performance.now() - startTime}ms` },
+    });
 
     // Get latest video
-    console.log("📡 Fetching latest video data...");
+    logger.info("Fetching latest video data", { prefix: "YouTube API" });
     const videosUrl = new URL(`${YOUTUBE_API_BASE}/search`);
     videosUrl.searchParams.append("part", "snippet");
     videosUrl.searchParams.append("channelId", channelId);
@@ -130,19 +160,31 @@ async function processChannel(channelId: string, profileId: string) {
     videosUrl.searchParams.append("key", process.env.YOUTUBE_API_KEY!);
 
     const videosResponse = await fetchWithRetry(videosUrl.toString());
-    console.log("🎥 Videos data:", JSON.stringify(videosResponse, null, 2));
+    logger.debug("Videos data received", {
+      prefix: "YouTube API",
+      data: videosResponse,
+    });
 
     const latestVideo = videosResponse.items[0];
     if (latestVideo) {
-      console.log("🎥 Latest video details:", {
-        videoId: latestVideo.id?.videoId,
-        title: latestVideo.snippet?.title,
-        publishedAt: latestVideo.snippet?.publishedAt,
+      logger.info("Latest video details", {
+        prefix: "YouTube API",
+        data: {
+          videoId: latestVideo.id?.videoId,
+          title: latestVideo.snippet?.title,
+          publishedAt: latestVideo.snippet?.publishedAt,
+        },
       });
     } else {
-      console.log("⚠️ No videos found for channel");
+      logger.warn("No videos found for channel", {
+        prefix: "YouTube API",
+        data: { channelId },
+      });
     }
-    console.log("⏱️ Video data fetched:", performance.now() - startTime, "ms");
+    logger.debug("Video data fetch duration", {
+      prefix: "YouTube API",
+      data: { duration: `${performance.now() - startTime}ms` },
+    });
 
     // Prepare channel data
     const channelDataToSave = {
@@ -157,37 +199,41 @@ async function processChannel(channelId: string, profileId: string) {
         channelData.snippet.customUrl ||
         `@${channelData.snippet.title.replace(/\s+/g, "")}`,
     };
-    console.log("📦 Prepared data for saving:", channelDataToSave);
+    logger.info("Prepared data for saving", {
+      prefix: "YouTube API",
+      data: channelDataToSave,
+    });
 
     // Save to database
-    console.log("💾 Saving channel data to database...");
+    logger.info("Saving channel data to database", { prefix: "YouTube API" });
     await addYouTubeChannel(profileId, channelDataToSave);
-    console.log("💾 Channel data saved successfully");
-    console.log(
-      "⏱️ Database operation completed:",
-      performance.now() - startTime,
-      "ms"
-    );
+    logger.info("Channel data saved successfully", { prefix: "YouTube API" });
+    logger.debug("Database operation duration", {
+      prefix: "YouTube API",
+      data: { duration: `${performance.now() - startTime}ms` },
+    });
 
     // Update status
-    console.log("📝 Updating processing status...");
+    logger.info("Updating processing status", { prefix: "YouTube API" });
     await updateChannelProcessingStatus(channelId, "completed");
-    console.log("✅ Status updated to completed");
+    logger.info("Status updated to completed", { prefix: "YouTube API" });
 
     const endTime = performance.now();
     const totalTime = endTime - startTime;
-    console.log("🏁 Channel processing completed successfully");
-    console.log("⏱️ Total processing time:", totalTime, "ms");
+    logger.info("Channel processing completed successfully", {
+      prefix: "YouTube API",
+      data: { totalDuration: `${totalTime}ms` },
+    });
   } catch (error) {
     const errorTime = performance.now();
-    console.error("💥 Error processing channel");
-    console.error("❌ Error details:", {
-      message: error instanceof Error ? error.message : "Unknown error",
-      stack: error instanceof Error ? error.stack : undefined,
-      timeToError: errorTime - startTime,
+    logger.error("Error processing channel", {
+      prefix: "YouTube API",
+      data: {
+        message: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+        timeToError: `${errorTime - startTime}ms`,
+      },
     });
-
-    console.log("❌ Failed after:", errorTime - startTime, "ms");
 
     await updateChannelProcessingStatus(
       channelId,

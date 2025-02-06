@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { supabaseServicePublic } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 
 const POLLING_INTERVAL = 20000;
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -10,21 +11,26 @@ export class EmailWorker {
 
   async start() {
     this.isRunning = true;
-    console.log("🎬 Starting email worker");
+    logger.info("🎬 Starting email worker", { prefix: "Email Worker" });
 
     while (this.isRunning) {
       try {
         await this.processNextBatch();
         await new Promise((resolve) => setTimeout(resolve, POLLING_INTERVAL));
       } catch (error) {
-        console.error("💥 Email worker error:", error);
+        logger.error("💥 Email worker error:", {
+          prefix: "Email Worker",
+          data: {
+            error: error instanceof Error ? error.message : "Unknown error",
+          },
+        });
       }
     }
   }
 
   stop() {
     this.isRunning = false;
-    console.log("🛑 Stopping email worker");
+    logger.info("🛑 Stopping email worker", { prefix: "Email Worker" });
   }
 
   private async processNextBatch() {
@@ -40,23 +46,39 @@ export class EmailWorker {
       if (fetchError) throw fetchError;
       if (!notifications?.length) return;
 
-      console.log(`📧 Processing ${notifications.length} email notifications`);
+      logger.info(`📧 Processing ${notifications.length} email notifications`, {
+        prefix: "Email Worker",
+        data: { batchSize: notifications.length },
+      });
 
       // Process each notification
       for (const notification of notifications) {
         try {
           const toEmail = notification.profiles.email;
           if (!toEmail) {
-            console.warn(
-              `⚠️ No email found for profile ${notification.profile_id}`
+            logger.warn(
+              `⚠️ No email found for profile ${notification.profile_id}`,
+              {
+                prefix: "Email Worker",
+                data: { profileId: notification.profile_id },
+              }
             );
             continue;
           }
 
           // Send email
-          console.log(
-            `📤 Sending email to ${toEmail} for video ${notification.video_id}`
+          logger.info(
+            `📤 Sending email to ${toEmail} for video ${notification.video_id}`,
+            {
+              prefix: "Email Worker",
+              data: {
+                toEmail,
+                videoId: notification.video_id,
+                title: notification.video_captions.title,
+              },
+            }
           );
+
           await resend.emails.send({
             from: "Flow Fusion Notifier <info@huudle.io>",
             to: toEmail,
@@ -75,18 +97,30 @@ export class EmailWorker {
             .eq("id", notification.id);
 
           if (updateError) {
-            console.error(
-              `❌ Failed to update notification status:`,
-              updateError
-            );
+            logger.error(`❌ Failed to update notification status:`, {
+              prefix: "Email Worker",
+              data: {
+                error: updateError.message,
+                notificationId: notification.id,
+              },
+            });
             continue;
           }
 
-          console.log(`✅ Email sent successfully to ${toEmail}`);
+          logger.info(`✅ Email sent successfully to ${toEmail}`, {
+            prefix: "Email Worker",
+            data: { toEmail, notificationId: notification.id },
+          });
         } catch (error) {
-          console.error(
+          logger.error(
             `❌ Failed to process notification ${notification.id}:`,
-            error
+            {
+              prefix: "Email Worker",
+              data: {
+                error: error instanceof Error ? error.message : "Unknown error",
+                notificationId: notification.id,
+              },
+            }
           );
 
           // Update to failed status
@@ -99,7 +133,12 @@ export class EmailWorker {
         }
       }
     } catch (error) {
-      console.error("💥 Batch processing error:", error);
+      logger.error("💥 Batch processing error:", {
+        prefix: "Email Worker",
+        data: {
+          error: error instanceof Error ? error.message : "Unknown error",
+        },
+      });
     }
   }
 }

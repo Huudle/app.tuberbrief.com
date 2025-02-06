@@ -1,5 +1,4 @@
-import fs from "fs";
-import path from "path";
+import { buildUrl } from "./utils";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -7,105 +6,21 @@ interface LogOptions {
   level?: LogLevel;
   timestamp?: boolean;
   prefix?: string;
-  data?: Record<string, unknown>; // For structured logging
+  data?: Record<string, unknown>;
 }
 
 const defaultOptions: LogOptions = {
   level: "info",
-  timestamp: true,  // Always include timestamp
+  timestamp: true,
   prefix: "",
 };
 
-
 class Logger {
   private static instance: Logger;
-  private isDevelopment: boolean = false;
-  private logDir: string = "";
-  private currentLogFile: string = "";
-  private fallbackConsole: boolean = false;
+  private isDevelopment: boolean = process.env.NODE_ENV !== "production";
 
   private constructor() {
-    try {
-      this.isDevelopment = process.env.NODE_ENV !== "production";
-      this.logDir = path.join(process.cwd(), "logs");
-      this.initializeLogDirectory();
-      this.currentLogFile = this.getLogFilePath();
-    } catch (error) {
-      // If initialization fails, fall back to console-only logging
-      this.fallbackConsole = true;
-      this.consoleOutput(
-        "error",
-        "Logger initialization failed, falling back to console",
-        {
-          data: {
-            error: error instanceof Error ? error.message : "Unknown error",
-          },
-        }
-      );
-    }
-  }
-
-  private consoleOutput(
-    level: LogLevel,
-    message: string,
-    options?: LogOptions
-  ): void {
-    try {
-      console.log(message);
-    } catch (error) {
-      // Last resort fallback
-      console.log(
-        `[ERROR] Logger failed: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`
-      );
-      console.log("Original message:", message);
-      if (options?.data) {
-        console.log("Additional data:", options.data);
-      }
-    }
-  }
-
-  private initializeLogDirectory(): void {
-    try {
-      if (!fs.existsSync(this.logDir)) {
-        fs.mkdirSync(this.logDir, { recursive: true });
-      }
-    } catch (error) {
-      this.fallbackConsole = true;
-      this.consoleOutput("error", "Failed to create log directory", {
-        data: {
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-      });
-    }
-  }
-
-  private getDateParts(): { year: string; month: string; day: string } {
-    const now = new Date();
-    return {
-      year: now.getFullYear().toString(),
-      month: (now.getMonth() + 1).toString().padStart(2, "0"),
-      day: now.getDate().toString().padStart(2, "0"),
-    };
-  }
-
-  private getLogFilePath(): string {
-    try {
-      const { year, month, day } = this.getDateParts();
-      const monthDir = path.join(this.logDir, year, month);
-
-      fs.mkdirSync(monthDir, { recursive: true });
-      return path.join(monthDir, `${day}.log`);
-    } catch (error) {
-      this.fallbackConsole = true;
-      this.consoleOutput("error", "Failed to create log file path", {
-        data: {
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-      });
-      return "";
-    }
+    this.isDevelopment = process.env.NODE_ENV !== "production";
   }
 
   public static getInstance(): Logger {
@@ -153,109 +68,56 @@ class Logger {
     }
   }
 
-  private writeToFile(message: string): void {
-    if (this.fallbackConsole) return;
-
+  private async writeLog(
+    message: unknown,
+    options: LogOptions = {}
+  ): Promise<void> {
     try {
-      const currentFilePath = this.getLogFilePath();
-      if (currentFilePath !== this.currentLogFile) {
-        this.currentLogFile = currentFilePath;
-      }
+      const formattedMessage = this.formatMessage(message, options);
 
-      fs.appendFileSync(this.currentLogFile, message + "\n");
+      console.log(formattedMessage);
+
+      const response = await fetch(buildUrl("/api/log"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: String(message),
+          level: options.level,
+          timestamp: this.getTimestamp(),
+          prefix: options.prefix,
+          data: options.data,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to write log: ${response.statusText}`);
+      }
     } catch (error) {
-      this.fallbackConsole = true;
-      const errorMsg = this.formatMessage(
-        "Failed to write to log file, falling back to console",
-        {
-          level: "error",
-          data: {
-            error: error instanceof Error ? error.message : "Unknown error",
-          },
-        }
-      );
-      this.consoleOutput("error", errorMsg);
+      // Fallback to console in case of API failure
+      console.error("Failed to write log:", error);
     }
   }
 
-  public log(message: unknown, options: LogOptions = {}): void {
-    try {
-      const opts = { ...defaultOptions, ...options };
-      const formattedMessage = this.formatMessage(message, opts);
-
-      // Always write to console
-      this.consoleOutput(opts.level || "info", formattedMessage);
-
-      // Write to file for persistence
-      if (!this.fallbackConsole) {
-        this.writeToFile(formattedMessage);
-      }
-    } catch (error) {
-      // Last resort error handling
-      console.log("[CRITICAL] Logger failed completely:", error);
-      console.log("Original message:", message);
-    }
+  public async log(message: unknown, options: LogOptions = {}): Promise<void> {
+    await this.writeLog(message, options);
   }
 
   public debug(message: unknown, options: LogOptions = {}): void {
-    this.log(message, { ...options, level: "debug" });
+    this.writeLog(message, { ...options, level: "debug" });
   }
 
   public info(message: unknown, options: LogOptions = {}): void {
-    this.log(message, { ...options, level: "info" });
+    this.writeLog(message, { ...options, level: "info" });
   }
 
   public warn(message: unknown, options: LogOptions = {}): void {
-    this.log(message, { ...options, level: "warn" });
+    this.writeLog(message, { ...options, level: "warn" });
   }
 
   public error(message: unknown, options: LogOptions = {}): void {
-    this.log(message, { ...options, level: "error" });
-  }
-
-  // Utility method to get all logs for a specific date
-  public getLogs(date?: string): string[] {
-    try {
-      if (!date) {
-        return this.getLogsFromFile(this.currentLogFile);
-      }
-
-      const [year, month, day] = date.split("-");
-      const logFile = path.join(this.logDir, year, month, `${day}.log`);
-      return this.getLogsFromFile(logFile);
-    } catch (error) {
-      const errorMsg = this.formatMessage("Failed to get logs", {
-        level: "error",
-        data: {
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-      });
-      this.consoleOutput("error", errorMsg);
-      return [];
-    }
-  }
-
-  private getLogsFromFile(filePath: string): string[] {
-    try {
-      if (!fs.existsSync(filePath)) {
-        return [];
-      }
-
-      return fs
-        .readFileSync(filePath, "utf-8")
-        .split("\n")
-        .filter((line) => line.trim() !== "");
-    } catch (error) {
-      const errorMsg = this.formatMessage("Failed to read log file", {
-        level: "error",
-        data: {
-          error: error instanceof Error ? error.message : "Unknown error",
-          filePath,
-        },
-      });
-      this.consoleOutput("error", errorMsg);
-      return [];
-    }
+    this.writeLog(message, { ...options, level: "error" });
   }
 }
 

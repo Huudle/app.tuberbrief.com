@@ -20,11 +20,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/use-profile";
 import { ChannelFromXmlFeed } from "@/lib/types";
 import { managePubSubHubbub } from "@/lib/pubsub";
+import { logger } from "@/lib/logger";
 
 async function subscribeToPubSubHubbub(channelId: string): Promise<string> {
-  console.log("🔔 Subscribing to PubSubHubbub");
+  logger.info("Subscribing to PubSubHubbub", {
+    prefix: "PubSubHubbub",
+    data: { channelId },
+  });
   const ngrokUrl =
-    "https://91e4-2a02-4e0-2d19-94c-a50c-1355-d6b7-1ee3.ngrok-free.app";
+    "https://91e4-2a02-4d19-94c-a50c-1355-d6b7-1ee3.ngrok-free.app";
   const callbackUrl = await managePubSubHubbub({
     channelId,
     mode: "subscribe",
@@ -55,9 +59,12 @@ export default function AddChannelPage() {
         const channels = await getProfileChannels(profile.id);
         setCurrentChannels(channels.length);
       } catch (err) {
-        console.error("Error loading channels:", err);
+        logger.error("Failed to load channels", {
+          prefix: "Channels",
+          data: { error: err instanceof Error ? err.message : "Unknown error" },
+        });
         setError("Failed to load channels");
-        setCurrentChannels(0); // Set to 0 on error to allow form display
+        setCurrentChannels(0);
       }
     }
 
@@ -253,16 +260,30 @@ export default function AddChannelPage() {
         } catch (err) {
           // If PubSubHubbub subscription fails, we should:
           // 1. Log the error
-          console.error("Critical error during channel setup:", err);
+          logger.error("Critical error during channel setup", {
+            prefix: "Setup",
+            data: {
+              error: err instanceof Error ? err.message : "Unknown error",
+              channelId: channel.channelId,
+              profileId: profile.id,
+            },
+          });
 
           // 2. Try to cleanup the channel from database
           try {
             await removeYouTubeChannel(profile.id, channel.channelId);
           } catch (cleanupErr) {
-            console.error(
-              "Failed to cleanup after subscription error:",
-              cleanupErr
-            );
+            logger.error("Failed to cleanup after subscription error", {
+              prefix: "Cleanup",
+              data: {
+                error:
+                  cleanupErr instanceof Error
+                    ? cleanupErr.message
+                    : "Unknown error",
+                channelId: channel.channelId,
+                profileId: profile.id,
+              },
+            });
           }
 
           // 3. Show error to user
@@ -276,12 +297,20 @@ export default function AddChannelPage() {
         } else if (err instanceof Error && err.message === "Request timeout") {
           setError("Request timed out. Please try again.");
         } else {
-          console.error("Channel fetch error:", err);
+          logger.error("Channel fetch error", {
+            prefix: "Fetch",
+            data: {
+              error: err instanceof Error ? err.message : "Unknown error",
+            },
+          });
           setError("Failed to fetch channel information. Please try again.");
         }
       }
     } catch (err) {
-      console.error("Error adding channel:", err);
+      logger.error("Error adding channel", {
+        prefix: "Add Channel",
+        data: { error: err instanceof Error ? err.message : "Unknown error" },
+      });
       setError(
         err instanceof Error
           ? err.message
@@ -294,22 +323,22 @@ export default function AddChannelPage() {
 
   async function isValidYouTubeUrl(url: string): Promise<boolean> {
     try {
-      // Step 1: Validate URL format
       const parsedUrl = new URL(url);
 
-      // Step 2: Check if the URL belongs to the YouTube domain
       const validDomains = ["youtube.com", "www.youtube.com"];
       if (!validDomains.includes(parsedUrl.hostname)) {
-        console.log("❌ Invalid domain:", parsedUrl.hostname);
+        logger.warn("Invalid YouTube domain", {
+          prefix: "Validation",
+          data: { domain: parsedUrl.hostname },
+        });
         return false;
       }
 
-      // Step 3: Check if the URL has a valid channel path format
       const validPathPatterns = [
-        /^\/@[\w-]+$/, // @username format
-        /^\/c\/[\w-]+$/, // /c/channel-name format
-        /^\/channel\/[\w-]+$/, // /channel/ID format
-        /^\/[\w-]+$/, // direct channel name format
+        /^\/@[\w-]+$/,
+        /^\/c\/[\w-]+$/,
+        /^\/channel\/[\w-]+$/,
+        /^\/[\w-]+$/,
       ];
 
       const hasValidPath = validPathPatterns.some((pattern) =>
@@ -317,16 +346,22 @@ export default function AddChannelPage() {
       );
 
       if (!hasValidPath) {
-        console.log("❌ Invalid channel URL path:", parsedUrl.pathname);
+        logger.warn("Invalid channel URL path", {
+          prefix: "Validation",
+          data: { path: parsedUrl.pathname },
+        });
         return false;
       }
 
       return true;
     } catch (error) {
-      console.log("❌ Validation error:", {
-        name: error instanceof Error ? error.name : "Unknown",
-        message: error instanceof Error ? error.message : "Unknown error",
-        error,
+      logger.error("URL validation error", {
+        prefix: "Validation",
+        data: {
+          name: error instanceof Error ? error.name : "Unknown",
+          message: error instanceof Error ? error.message : "Unknown error",
+          error,
+        },
       });
       return false;
     }

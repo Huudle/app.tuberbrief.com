@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { YouTubeQueueMessage } from "@/lib/types";
 import { supabaseServicePGMQPublic } from "@/lib/supabase";
+import { logger } from "@/lib/logger";
 
 // Constants
 const QUEUE_NAME = "youtube_data_queue";
@@ -27,20 +28,23 @@ const supabase = supabaseServicePGMQPublic(
 
 export async function POST(request: Request) {
   const startTime = performance.now();
-  console.log("🔔 Starting YouTube data queue processing");
+  logger.info("🔔 Starting YouTube data queue processing", { prefix: "Queue" });
 
   try {
     const body = await request.json();
     const { channelId, videoId, title, authorName, published, updated } =
       body as YouTubeQueueMessage;
 
-    console.log("📝 Queue message:", {
-      channelId,
-      videoId,
-      title,
-      authorName,
-      published: published,
-      updated: updated,
+    logger.info("📝 Queue message:", {
+      prefix: "Queue",
+      data: {
+        channelId,
+        videoId,
+        title,
+        authorName,
+        published,
+        updated,
+      },
     });
 
     // Send message to queue
@@ -58,14 +62,21 @@ export async function POST(request: Request) {
     });
 
     if (error) {
-      console.error("❌ Queue error:", error.message);
+      logger.error("❌ Queue error:", {
+        prefix: "Queue",
+        data: { error: error.message },
+      });
       throw error;
     }
 
     const endTime = performance.now();
-    console.log("✅ Message sent to queue successfully");
-    console.log(
-      `⏱️ Request completed in ${(endTime - startTime).toFixed(2)}ms`
+    logger.info("✅ Message sent to queue successfully", { prefix: "Queue" });
+    logger.info(
+      `⏱️ Request completed in ${(endTime - startTime).toFixed(2)}ms`,
+      {
+        prefix: "Queue",
+        data: { duration: `${(endTime - startTime).toFixed(2)}ms` },
+      }
     );
 
     return NextResponse.json({
@@ -75,8 +86,13 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const endTime = performance.now();
-    console.error("💥 Queue processing error:", error);
-    console.error("Failed after:", (endTime - startTime).toFixed(2), "ms");
+    logger.error("💥 Queue processing error:", {
+      prefix: "Queue",
+      data: {
+        error: error instanceof Error ? error.message : "Unknown error",
+        duration: `${(endTime - startTime).toFixed(2)}ms`,
+      },
+    });
 
     return NextResponse.json(
       {
@@ -90,7 +106,7 @@ export async function POST(request: Request) {
 
 export async function GET() {
   const startTime = performance.now();
-  console.log("🔍 Starting queue message retrieval");
+  logger.info("🔍 Starting queue message retrieval", { prefix: "Queue" });
 
   try {
     // Read message from queue
@@ -100,14 +116,21 @@ export async function GET() {
     });
 
     if (error) {
-      console.error("❌ Queue error:", error.message);
+      logger.error("❌ Queue error:", {
+        prefix: "Queue",
+        data: { error: error.message },
+      });
       throw error;
     }
 
     const endTime = performance.now();
-    console.log("✅ Queue message retrieved successfully");
-    console.log(
-      `⏱️ Request completed in ${(endTime - startTime).toFixed(2)}ms`
+    logger.info("✅ Queue message retrieved successfully", { prefix: "Queue" });
+    logger.info(
+      `⏱️ Request completed in ${(endTime - startTime).toFixed(2)}ms`,
+      {
+        prefix: "Queue",
+        data: { duration: `${(endTime - startTime).toFixed(2)}ms` },
+      }
     );
 
     if (!data || data.length === 0) {
@@ -118,10 +141,13 @@ export async function GET() {
     }
 
     const message = data[0] as YouTubeQueueMessage;
-    console.log("📦 Retrieved message:", {
-      ...message,
-      published: message.published?.slice(0, 10),
-      updated: message.updated?.slice(0, 10),
+    logger.info("📦 Retrieved message:", {
+      prefix: "Queue",
+      data: {
+        ...message,
+        published: message.published?.slice(0, 10),
+        updated: message.updated?.slice(0, 10),
+      },
     });
 
     return NextResponse.json({
@@ -130,8 +156,13 @@ export async function GET() {
     });
   } catch (error) {
     const endTime = performance.now();
-    console.error("💥 Queue retrieval error:", error);
-    console.error("Failed after:", (endTime - startTime).toFixed(2), "ms");
+    logger.error("💥 Queue retrieval error:", {
+      prefix: "Queue",
+      data: {
+        error: error instanceof Error ? error.message : "Unknown error",
+        duration: `${(endTime - startTime).toFixed(2)}ms`,
+      },
+    });
 
     return NextResponse.json(
       {

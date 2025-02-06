@@ -2,6 +2,7 @@ import { Video } from "@/lib/types";
 import { getStoredCaptions, storeCaptions } from "@/lib/supabase";
 import { getTranscript } from "@/lib/supadata";
 import { CaptionData } from "@/lib/types";
+import { logger } from "@/lib/logger";
 
 /*
 const parseXMLCaptions = (xmlContent: string): string => {
@@ -24,7 +25,10 @@ const parseXMLCaptions = (xmlContent: string): string => {
 
     return plainText;
   } catch (error) {
-    console.error("[Caption Fetcher] Error parsing captions XML:", error);
+    logger.error("💥 Error parsing captions XML", {
+      prefix: "Captions",
+      data: { error: error instanceof Error ? error.message : "Unknown error" },
+    });
     return "";
   }
 };
@@ -61,23 +65,25 @@ const findBestCaptionTrack = (
 
 const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
   try {
-    console.log("🎬 Starting caption fetch for video:", {
-      id: video.id,
-      url: video.url,
+    logger.info("🎬 Starting caption fetch for video", {
+      prefix: "Captions",
+      data: {
+        id: video.id,
+        url: video.url,
+      },
     });
 
     const transcriptResponse = await getTranscript(video.id, { text: true });
-    console.log("🔍 Transcript response:", transcriptResponse);
-    // If transcriptResponse is not available, return null
-    // Supadata returns:
-    /*
-    {
-      error: 'transcript-unavailable',
-      message: 'No transcript is available for this video'
-    }
-    */
+    logger.debug("🔍 Transcript response", {
+      prefix: "Captions",
+      data: { transcriptResponse },
+    });
+
     if (!transcriptResponse) {
-      console.log("⚠️ No transcript is available for this video");
+      logger.warn("⚠️ No transcript is available for this video", {
+        prefix: "Captions",
+        data: { videoId: video.id },
+      });
       return null;
     }
 
@@ -91,18 +97,23 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
     };
 
     /*
-
-    console.log("🔍 HTML content:", htmlContent);
+    logger.debug("🔍 HTML content", {
+      prefix: "Captions",
+      data: { htmlContent },
+    });
 
     // Log all the HTML content's meta tags
-    console.log(
-      "🔍 HTML content meta tags:",
-      htmlContent.match(/<meta[^>]*>/g)
-    );
+    logger.debug("🔍 HTML content meta tags", {
+      prefix: "Captions",
+      data: { metaTags: htmlContent.match(/<meta[^>]*>/g) },
+    });
 
     // Basic validation
     if (htmlContent.length < 1000) {
-      console.warn("⚠️ HTML content suspiciously small");
+      logger.warn("⚠️ HTML content suspiciously small", {
+        prefix: "Captions",
+        data: { length: htmlContent.length },
+      });
       return null;
     }
 
@@ -110,23 +121,30 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
     const match = htmlContent.match(captionTracksRegex);
 
     if (!match?.[1]) {
-      console.log("⚠️ No caption tracks found");
+      logger.warn("⚠️ No caption tracks found", {
+        prefix: "Captions",
+        data: { videoId: video.id },
+      });
       return null;
     }
 
     const captionTracks = JSON.parse(`[${match[1]}]`);
-    console.log("📋 Found caption tracks:", captionTracks);
-    console.log(
-      "📋 Found caption tracks:",
-      captionTracks.map((track: YouTubeCaptionTrack) => ({
-        language: track.languageCode,
-        isAuto: track.kind?.includes("asr"),
-      }))
-    );
+    logger.debug("📋 Found caption tracks", {
+      prefix: "Captions",
+      data: { 
+        tracks: captionTracks.map((track: YouTubeCaptionTrack) => ({
+          language: track.languageCode,
+          isAuto: track.kind?.includes("asr"),
+        }))
+      },
+    });
 
     const selectedTrack = findBestCaptionTrack(captionTracks);
     if (!selectedTrack?.baseUrl) {
-      console.log("⚠️ No suitable caption track found");
+      logger.warn("⚠️ No suitable caption track found", {
+        prefix: "Captions",
+        data: { videoId: video.id },
+      });
       return null;
     }
 
@@ -142,10 +160,13 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
     const captionsContent = await captionsResponse.text();
     const transcript = parseXMLCaptions(captionsContent);
 
-    console.log("✅ Successfully fetched captions:", {
-      language: selectedTrack.languageCode,
-      length: transcript.length,
-      isAuto: selectedTrack.kind?.includes("asr"),
+    logger.info("✅ Successfully fetched captions", {
+      prefix: "Captions",
+      data: {
+        language: selectedTrack.languageCode,
+        length: transcript.length,
+        isAuto: selectedTrack.kind?.includes("asr"),
+      },
     });
 
     return {
@@ -155,7 +176,13 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
     };
     */
   } catch (error) {
-    console.error("💥 Caption fetcher error:", (error as Error).message);
+    logger.error("💥 Caption fetcher error", {
+      prefix: "Captions",
+      data: {
+        error: error instanceof Error ? error.message : "Unknown error",
+        videoId: video.id,
+      },
+    });
     return null;
   }
 };
@@ -164,12 +191,18 @@ export async function fetchCaptions(
   videoId: string,
   title?: string
 ): Promise<CaptionData | null> {
-  console.log("🎥 Fetching captions for video:", videoId);
+  logger.info("🎥 Fetching captions for video", {
+    prefix: "Captions",
+    data: { videoId, title },
+  });
 
   try {
     const storedCaptions = await getStoredCaptions(videoId);
     if (storedCaptions) {
-      console.log("📚 Using stored captions for:", videoId);
+      logger.info("📚 Using stored captions", {
+        prefix: "Captions",
+        data: { videoId },
+      });
       return storedCaptions;
     }
 
@@ -193,7 +226,14 @@ export async function fetchCaptions(
 
     return captionData;
   } catch (error) {
-    console.error("❌ Error fetching captions:", error);
+    logger.error("❌ Error fetching captions", {
+      prefix: "Captions",
+      data: {
+        error: error instanceof Error ? error.message : "Unknown error",
+        videoId,
+        title,
+      },
+    });
     throw new Error(
       `Failed to fetch captions: ${
         error instanceof Error ? error.message : "Unknown error"

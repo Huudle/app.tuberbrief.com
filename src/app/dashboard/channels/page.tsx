@@ -26,9 +26,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PLAN_LIMITS } from "@/lib/constants";
 import { useProfile } from "@/hooks/use-profile";
 import { managePubSubHubbub } from "@/lib/pubsub";
+import { logger } from "@/lib/logger";
 
 async function unsubscribeFromPubSubHubbub(channelId: string): Promise<void> {
-  console.log("🔔 Unsubscribing from PubSubHubbub");
+  logger.info("🔔 Unsubscribing from PubSubHubbub");
   const ngrokUrl =
     "https://91e4-2a02-4e0-2d19-94c-a50c-1355-d6b7-1ee3.ngrok-free.app";
   await managePubSubHubbub({
@@ -70,7 +71,9 @@ export default function ChannelsPage() {
   }, [profile, isLoadingProfile]);
 
   const handleDelete = async (channelId: string, channelChannelId: string) => {
-    console.log("🔔 Deleting channel:", channelChannelId);
+    logger.info("🔔 Deleting channel:", {
+      data: { channelId: channelChannelId },
+    });
     if (!profile) return;
 
     try {
@@ -84,7 +87,9 @@ export default function ChannelsPage() {
       try {
         await unsubscribeFromPubSubHubbub(channelChannelId);
       } catch (err) {
-        console.error("Failed to unsubscribe from notifications:", err);
+        logger.error("❌ Failed to unsubscribe from notifications:", {
+          data: { error: err },
+        });
       }
 
       await deleteProfileChannel(profile.id, channelId);
@@ -93,7 +98,7 @@ export default function ChannelsPage() {
         prevChannels.filter((channel) => channel.id !== channelId)
       );
     } catch (err) {
-      console.error("Error deleting channel:", err);
+      logger.error("❌ Error deleting channel:", { data: { error: err } });
       setError(
         err instanceof Error
           ? err.message
@@ -167,9 +172,7 @@ export default function ChannelsPage() {
   if (isLoadingProfile || isLoading) {
     return (
       <AppLayout
-        breadcrumbs={[
-          { label: "YouTube Channels", href: "/dashboard" },
-        ]}
+        breadcrumbs={[{ label: "YouTube Channels", href: "/dashboard" }]}
       >
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -191,9 +194,7 @@ export default function ChannelsPage() {
   if (error || !profile) {
     return (
       <AppLayout
-        breadcrumbs={[
-          { label: "YouTube Channels", href: "/dashboard" },
-        ]}
+        breadcrumbs={[{ label: "YouTube Channels", href: "/dashboard" }]}
       >
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -209,9 +210,7 @@ export default function ChannelsPage() {
 
   return (
     <AppLayout
-      breadcrumbs={[
-        { label: "YouTube Channels", href: "/dashboard" },
-      ]}
+      breadcrumbs={[{ label: "YouTube Channels", href: "/dashboard" }]}
     >
       <div className="flex justify-between items-center mb-6">
         <div>

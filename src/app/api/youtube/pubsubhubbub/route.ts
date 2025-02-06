@@ -1,26 +1,32 @@
 import axios from "axios";
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 const PUBSUBHUBBUB_HUB_URL = "https://pubsubhubbub.appspot.com/subscribe";
 
 export async function POST(request: Request) {
   const startTime = performance.now();
-  console.log("🔔 Starting PubSubHubbub subscription request");
+  logger.info("Starting PubSubHubbub subscription request", {
+    prefix: "PubSubHubbub",
+  });
 
   try {
     const body = await request.json();
     const { callbackUrl, topicUrl, mode = "subscribe" } = body;
-    console.log("📝 Request body:", {
-      callbackUrl,
-      topicUrl,
-      mode,
-      verifyToken: body.verifyToken ? "✓" : "✗",
-      secret: body.secret ? "✓" : "✗",
-      leaseSeconds: body.leaseSeconds,
+    logger.info("Request body:", {
+      prefix: "PubSubHubbub",
+      data: {
+        callbackUrl,
+        topicUrl,
+        mode,
+        verifyToken: body.verifyToken ? "✓" : "✗",
+        secret: body.secret ? "✓" : "✗",
+        leaseSeconds: body.leaseSeconds,
+      },
     });
 
     if (!callbackUrl || !topicUrl) {
-      console.log("❌ Missing required parameters");
+      logger.warn("Missing required parameters", { prefix: "PubSubHubbub" });
       return NextResponse.json(
         { error: "Callback URL and Topic URL are required" },
         { status: 400 }
@@ -29,7 +35,7 @@ export async function POST(request: Request) {
 
     // Validate mode
     if (mode !== "subscribe" && mode !== "unsubscribe") {
-      console.log("❌ Invalid mode:", mode);
+      logger.warn("Invalid mode:", { prefix: "PubSubHubbub", data: { mode } });
       return NextResponse.json(
         { error: "Mode must be either 'subscribe' or 'unsubscribe'" },
         { status: 400 }
@@ -46,18 +52,23 @@ export async function POST(request: Request) {
     // Optional parameters
     if (body.verifyToken) {
       formData.append("hub.verify_token", body.verifyToken);
-      console.log("🔑 Added verify token to request");
+      logger.info("Added verify token to request", { prefix: "PubSubHubbub" });
     }
     if (body.secret) {
       formData.append("hub.secret", body.secret);
-      console.log("🔒 Added secret to request");
+      logger.info("Added secret to request", { prefix: "PubSubHubbub" });
     }
     if (body.leaseSeconds) {
       formData.append("hub.lease_seconds", body.leaseSeconds.toString());
-      console.log("⏱️ Added lease seconds:", body.leaseSeconds);
+      logger.info("Added lease seconds", {
+        prefix: "PubSubHubbub",
+        data: { leaseSeconds: body.leaseSeconds },
+      });
     }
 
-    console.log("📤 Sending request to PubSubHubbub hub...");
+    logger.info("Sending request to PubSubHubbub hub...", {
+      prefix: "PubSubHubbub",
+    });
     // Submit the form
     const response = await axios.post(PUBSUBHUBBUB_HUB_URL, formData, {
       headers: {
@@ -71,15 +82,20 @@ export async function POST(request: Request) {
       },
     });
 
-    console.log("🔍 Response status:", response.status);
-    console.log("🔍 Response headers:", response.headers);
-    console.log("🔍 Response data:", response.data || "No content");
+    logger.info("Response details", {
+      prefix: "PubSubHubbub",
+      data: {
+        status: response.status,
+        headers: response.headers,
+        data: response.data || "No content",
+      },
+    });
 
     const endTime = performance.now();
-    console.log("✅ Subscription request successful");
-    console.log(
-      `⏱️ Request completed in ${(endTime - startTime).toFixed(2)}ms`
-    );
+    logger.info("Subscription request successful", {
+      prefix: "PubSubHubbub",
+      data: { duration: `${(endTime - startTime).toFixed(2)}ms` },
+    });
 
     // If we get here, the subscription request was successful
     return NextResponse.json({
@@ -88,19 +104,23 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const endTime = performance.now();
-    console.error("💥 PubSubHubbub subscription error:", error);
-    console.error(
-      "Request failed after:",
-      (endTime - startTime).toFixed(2),
-      "ms"
-    );
+    logger.error("PubSubHubbub subscription error", {
+      prefix: "PubSubHubbub",
+      data: {
+        duration: `${(endTime - startTime).toFixed(2)}ms`,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+    });
 
     if (axios.isAxiosError(error)) {
-      console.error("🔍 Detailed error information:", {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        headers: error.response?.headers,
+      logger.error("Detailed error information", {
+        prefix: "PubSubHubbub",
+        data: {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          headers: error.response?.headers,
+        },
       });
     }
 
@@ -117,7 +137,9 @@ export async function POST(request: Request) {
 // Example usage for subscription details
 export async function GET(request: Request) {
   const startTime = performance.now();
-  console.log("🔍 Starting PubSubHubbub subscription details request");
+  logger.info("Starting PubSubHubbub subscription details request", {
+    prefix: "PubSubHubbub",
+  });
 
   try {
     const { searchParams } = new URL(request.url);
@@ -125,14 +147,17 @@ export async function GET(request: Request) {
     const topicUrl = searchParams.get("hub.topic");
     const secret = searchParams.get("hub.secret");
 
-    console.log("📝 Query parameters:", {
-      callbackUrl,
-      topicUrl,
-      secret: secret ? "✓" : "✗",
+    logger.info("Query parameters", {
+      prefix: "PubSubHubbub",
+      data: {
+        callbackUrl,
+        topicUrl,
+        secret: secret ? "✓" : "✗",
+      },
     });
 
     if (!callbackUrl || !topicUrl) {
-      console.log("❌ Missing required parameters");
+      logger.warn("Missing required parameters", { prefix: "PubSubHubbub" });
       return NextResponse.json(
         { error: "Callback URL and Topic URL are required" },
         { status: 400 }
@@ -146,37 +171,45 @@ export async function GET(request: Request) {
 
     if (secret) {
       params.append("hub.secret", secret);
-      console.log("🔒 Added secret to request");
+      logger.info("Added secret to request", { prefix: "PubSubHubbub" });
     }
 
-    console.log("📤 Sending request to get subscription details...");
+    logger.info("Sending request to get subscription details...", {
+      prefix: "PubSubHubbub",
+    });
     const response = await axios.get(
       `https://pubsubhubbub.appspot.com/subscription-details?${params.toString()}`
     );
 
     const endTime = performance.now();
-    console.log("✅ Successfully retrieved subscription details");
-    console.log(
-      `⏱️ Request completed in ${(endTime - startTime).toFixed(2)}ms`
-    );
-    console.log("📊 Subscription details:", response.data);
+    logger.info("Successfully retrieved subscription details", {
+      prefix: "PubSubHubbub",
+      data: {
+        duration: `${(endTime - startTime).toFixed(2)}ms`,
+        details: response.data,
+      },
+    });
 
     return NextResponse.json(response.data);
   } catch (error) {
     const endTime = performance.now();
-    console.error("💥 PubSubHubbub details error:", error);
-    console.error(
-      "Request failed after:",
-      (endTime - startTime).toFixed(2),
-      "ms"
-    );
+    logger.error("PubSubHubbub details error", {
+      prefix: "PubSubHubbub",
+      data: {
+        duration: `${(endTime - startTime).toFixed(2)}ms`,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+    });
 
     if (axios.isAxiosError(error)) {
-      console.error("🔍 Detailed error information:", {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        headers: error.response?.headers,
+      logger.error("Detailed error information", {
+        prefix: "PubSubHubbub",
+        data: {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          headers: error.response?.headers,
+        },
       });
     }
 

@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { logger } from "@/lib/logger";
 import {
   YouTubeChannel,
   ChannelListItem,
@@ -58,10 +59,14 @@ export async function checkIfChannelIsLinked(
   }
 
   if (checkError) {
-    console.error(
-      "❌ Error checking if channel is linked:",
-      (checkError as Error).message
-    );
+    logger.error("Error checking if channel is linked", {
+      prefix: "Supabase",
+      data: {
+        error: checkError.message,
+        profileId,
+        channelId,
+      },
+    });
     throw checkError;
   }
 
@@ -92,13 +97,18 @@ export async function addYouTubeChannel(
     customUrl: string;
   }
 ): Promise<YouTubeChannel> {
-  console.log("🚀 Starting addYouTubeChannel");
-  console.log("📝 Profile ID:", profileId);
-  console.log("📦 Channel Data:", channelData);
+  logger.info("Starting addYouTubeChannel", {
+    prefix: "Supabase",
+    data: { profileId, channelId: channelData.id },
+  });
 
   try {
     // First, upsert the YouTube channel
-    console.log("🔄 Upserting YouTube channel...");
+    logger.debug("Upserting YouTube channel", {
+      prefix: "Supabase",
+      data: { channelData },
+    });
+
     const { error: channelError } = await supabaseAnon
       .from("youtube_channels")
       .upsert({
@@ -112,22 +122,23 @@ export async function addYouTubeChannel(
       });
 
     if (channelError) {
-      console.error(
-        "❌ Error upserting YouTube channel:",
-        (channelError as Error).message
-      );
-      console.error("Details:", {
-        code: channelError.code,
-        message: channelError.message,
-        details: channelError.details,
-        hint: channelError.hint,
+      logger.error("Error upserting YouTube channel", {
+        prefix: "Supabase",
+        data: {
+          error: channelError.message,
+          code: channelError.code,
+          details: channelError.details,
+          hint: channelError.hint,
+        },
       });
       throw channelError;
     }
-    console.log("✅ Channel upsert successful");
+    logger.debug("Channel upsert successful", { prefix: "Supabase" });
 
     if (!(await checkIfChannelIsLinked(profileId, channelData.id))) {
-      console.log("🔗 Creating profile-channel association...");
+      logger.debug("Creating profile-channel association", {
+        prefix: "Supabase",
+      });
       const { data: linkData, error: linkError } = await supabaseAnon
         .from("profile_youtube_channels")
         .insert({
@@ -136,20 +147,25 @@ export async function addYouTubeChannel(
         });
 
       if (linkError) {
-        console.error("❌ Error linking profile to channel:", linkError);
-        console.error("Details:", {
-          code: linkError.code,
-          message: linkError.message,
-          details: linkError.details,
-          hint: linkError.hint,
+        logger.error("Error linking profile to channel", {
+          prefix: "Supabase",
+          data: {
+            error: linkError.message,
+            code: linkError.code,
+            details: linkError.details,
+            hint: linkError.hint,
+          },
         });
         throw linkError;
       }
-      console.log("✅ Profile-channel link successful:", linkData);
+      logger.debug("Profile-channel link successful", {
+        prefix: "Supabase",
+        data: { linkData },
+      });
     }
 
     // Return the channel data
-    console.log("📡 Fetching final channel data...");
+    logger.debug("Fetching final channel data", { prefix: "Supabase" });
     const { data: channel, error: fetchError } = await supabaseAnon
       .from("youtube_channels")
       .select("*")
@@ -157,35 +173,41 @@ export async function addYouTubeChannel(
       .single();
 
     if (fetchError) {
-      console.error(
-        "❌ Error fetching channel:",
-        (fetchError as Error).message
-      );
-      console.error("Details:", {
-        code: fetchError.code,
-        message: fetchError.message,
-        details: fetchError.details,
-        hint: fetchError.hint,
+      logger.error("Error fetching channel", {
+        prefix: "Supabase",
+        data: {
+          error: fetchError.message,
+          code: fetchError.code,
+          details: fetchError.details,
+          hint: fetchError.hint,
+        },
       });
       throw fetchError;
     }
 
     if (!channel) {
-      console.error("❌ No channel data found after upsert");
+      logger.error("No channel data found after upsert", {
+        prefix: "Supabase",
+        data: { channelId: channelData.id },
+      });
       throw new Error("Channel not found after upsert");
     }
 
-    console.log("✅ Final channel data fetched:", channel);
-    console.log("🎉 addYouTubeChannel completed successfully");
+    logger.info("addYouTubeChannel completed successfully", {
+      prefix: "Supabase",
+      data: { channel },
+    });
 
     return channel;
   } catch (error) {
-    console.error("💥 Unexpected error in addYouTubeChannel:", error);
-    if (error instanceof Error) {
-      console.error("Error name:", error.name);
-      console.error("Error message:", error.message);
-      console.error("Error stack:", error.stack);
-    }
+    logger.error("Unexpected error in addYouTubeChannel", {
+      prefix: "Supabase",
+      data: {
+        error: error instanceof Error ? error.message : "Unknown error",
+        name: error instanceof Error ? error.name : undefined,
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+    });
     throw error;
   }
 }
@@ -215,17 +237,22 @@ export async function getProfileChannels(
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("❌ Error fetching channels:", error);
+      logger.error("Error fetching channels", {
+        prefix: "Supabase",
+        data: { error: error.message, profileId },
+      });
       throw error;
     }
 
     if (!data) {
-      console.log("ℹ️ No channels found");
+      logger.info("No channels found", {
+        prefix: "Supabase",
+        data: { profileId },
+      });
       return [];
     }
 
     const typedData = data as unknown as ChannelQueryResult[];
-
     return typedData.map((item) => ({
       id: item.id,
       channelId: item.youtube_channel.id,
@@ -240,7 +267,13 @@ export async function getProfileChannels(
       customUrl: item.youtube_channel.custom_url,
     }));
   } catch (error) {
-    console.error("💥 Error in getProfileChannels:", error);
+    logger.error("Error in getProfileChannels", {
+      prefix: "Supabase",
+      data: {
+        error: error instanceof Error ? error.message : "Unknown error",
+        profileId,
+      },
+    });
     throw error;
   }
 }
@@ -249,7 +282,10 @@ export async function deleteProfileChannel(
   profileId: string,
   channelId: string
 ) {
-  console.log("🗑️ Deleting channel", { profileId, channelId });
+  logger.info("Deleting channel", {
+    prefix: "Supabase",
+    data: { profileId, channelId },
+  });
 
   try {
     const { error } = await supabaseAnon
@@ -259,13 +295,26 @@ export async function deleteProfileChannel(
       .eq("id", channelId);
 
     if (error) {
-      console.error("❌ Error deleting channel:", error);
+      logger.error("Error deleting channel", {
+        prefix: "Supabase",
+        data: { error: error.message, profileId, channelId },
+      });
       throw error;
     }
 
-    console.log("✅ Channel deleted successfully");
+    logger.info("Channel deleted successfully", {
+      prefix: "Supabase",
+      data: { profileId, channelId },
+    });
   } catch (error) {
-    console.error("💥 Error in deleteProfileChannel:", error);
+    logger.error("Error in deleteProfileChannel", {
+      prefix: "Supabase",
+      data: {
+        error: error instanceof Error ? error.message : "Unknown error",
+        profileId,
+        channelId,
+      },
+    });
     throw error;
   }
 }
@@ -315,7 +364,10 @@ export async function createOrUpdateChannel(
     .single();
 
   if (channelError) {
-    console.log("💥 Error creating channel:", channelError);
+    logger.error("Error creating channel", {
+      prefix: "Supabase",
+      data: { error: channelError.message, channelId },
+    });
     return {
       success: false,
       status: "failed",
@@ -356,7 +408,10 @@ export async function removeYouTubeChannel(
     .match({ profile_id: profileId, channel_id: channelId });
 
   if (error) {
-    console.error("Failed to remove channel:", error);
+    logger.error("Failed to remove channel", {
+      prefix: "Supabase",
+      data: { error: error.message, profileId, channelId },
+    });
     throw error;
   }
 }
@@ -395,7 +450,10 @@ export async function storeCaptions(
   });
 
   if (error) {
-    console.error("Failed to store captions:", error);
+    logger.error("Failed to store captions", {
+      prefix: "Supabase",
+      data: { error: error.message, videoId },
+    });
     throw error;
   }
 }
@@ -426,7 +484,10 @@ export async function storeAIContent(
     });
 
   if (error) {
-    console.error("Failed to store AI content:", error);
+    logger.error("Failed to store AI content", {
+      prefix: "Supabase",
+      data: { error: error.message, videoId },
+    });
     throw error;
   }
 }

@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { logger } from "@/lib/logger";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -10,14 +11,20 @@ export function getDefaultAvatar(user: {
   email: string;
   avatar_url?: string | null;
 }) {
-  console.log("🎭 Getting avatar for user:", {
-    name: user.name,
-    email: user.email,
-    hasAvatarUrl: !!user.avatar_url,
+  logger.debug("🎭 Getting avatar for user", {
+    prefix: "Utils",
+    data: {
+      name: user.name,
+      email: user.email,
+      hasAvatarUrl: !!user.avatar_url,
+    },
   });
 
   if (user.avatar_url) {
-    console.log("✅ Using provided avatar_url:", user.avatar_url);
+    logger.debug("✅ Using provided avatar_url", {
+      prefix: "Utils",
+      data: { avatar_url: user.avatar_url },
+    });
     return user.avatar_url;
   }
 
@@ -26,7 +33,10 @@ export function getDefaultAvatar(user: {
   const uiAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
     name
   )}&background=random`;
-  console.log("🎨 UI Avatar URL:", uiAvatarUrl);
+  logger.debug("🎨 Generated UI Avatar URL", {
+    prefix: "Utils",
+    data: { uiAvatarUrl },
+  });
   return uiAvatarUrl;
 }
 
@@ -63,7 +73,10 @@ export function getRelativeTime(date: string | Date): string {
 }
 
 export function parseRelativeTime(relativeTime: string): string {
-  console.log("🕒 Parsing relative time:", relativeTime);
+  logger.debug("🕒 Parsing relative time", {
+    prefix: "Utils",
+    data: { relativeTime },
+  });
   const now = new Date();
   const units: Record<string, number> = {
     second: 1000,
@@ -77,35 +90,52 @@ export function parseRelativeTime(relativeTime: string): string {
 
   // Handle "just now" or empty cases
   if (!relativeTime || relativeTime === "just now") {
-    console.log("⚡ Returning current time for empty/just now case");
+    logger.debug("⚡ Returning current time for empty/just now case", {
+      prefix: "Utils",
+    });
     return now.toISOString();
   }
 
   // Clean up input
   const cleanInput = relativeTime.trim().toLowerCase();
-  console.log("🧹 Cleaned input:", cleanInput);
+  logger.debug("🧹 Cleaned input", {
+    prefix: "Utils",
+    data: { cleanInput },
+  });
 
   // Match patterns like "1 hour ago", "2 days ago", etc.
   const match = cleanInput.match(
     /^(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago$/
   );
   if (!match) {
-    console.warn("⚠️ Could not parse relative time:", relativeTime);
+    logger.warn("⚠️ Could not parse relative time", {
+      prefix: "Utils",
+      data: { input: relativeTime },
+    });
     return now.toISOString();
   }
 
   const [, countStr, unit] = match;
   const count = parseInt(countStr, 10);
-  console.log("🔢 Parsed values:", { count, unit });
+  logger.debug("🔢 Parsed values", {
+    prefix: "Utils",
+    data: { count, unit },
+  });
 
   if (!(unit in units)) {
-    console.warn("⚠️ Unknown time unit:", unit);
+    logger.warn("⚠️ Unknown time unit", {
+      prefix: "Utils",
+      data: { unit },
+    });
     return now.toISOString();
   }
 
   const msAgo = count * units[unit];
   const date = new Date(now.getTime() - msAgo);
-  console.log("📅 Calculated date:", date.toISOString());
+  logger.debug("📅 Calculated date", {
+    prefix: "Utils",
+    data: { date: date.toISOString() },
+  });
 
   return date.toISOString();
 }
@@ -131,4 +161,4 @@ export function buildUrl(path: string): string {
   // Ensure path starts with / and remove any trailing slashes
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${baseUrl}${normalizedPath}`;
-} 
+}

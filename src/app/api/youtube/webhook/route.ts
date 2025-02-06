@@ -1,24 +1,33 @@
 import xml2js from "xml2js";
 import { PubSubHubbubNotification } from "@/lib/types";
 import { buildUrl } from "@/lib/utils";
+import { logger } from "@/lib/logger";
 
 // Helper function to make internal API calls
 async function internalFetch(path: string, options: RequestInit) {
   const url = buildUrl(path);
-  console.log("🔗 Internal API call to:", url);
+  logger.info("🔗 Internal API call to", {
+    prefix: "YouTube Webhook",
+    data: { url },
+  });
   return fetch(url, options);
 }
 
 export async function GET(request: Request) {
-  console.log("🔔 Received hub verification request");
+  logger.info("Received hub verification request", {
+    prefix: "YouTube Webhook",
+  });
   const { searchParams } = new URL(request.url);
 
   // Log verification request details
-  console.log("📝 Verification parameters:", {
-    mode: searchParams.get("hub.mode"),
-    topic: searchParams.get("hub.topic"),
-    challenge:
-      "..." + (searchParams.get("hub.challenge")?.slice(-10) || "none"),
+  logger.info("Verification parameters", {
+    prefix: "YouTube Webhook",
+    data: {
+      mode: searchParams.get("hub.mode"),
+      topic: searchParams.get("hub.topic"),
+      challenge:
+        "..." + (searchParams.get("hub.challenge")?.slice(-10) || "none"),
+    },
   });
 
   // Handle subscription verification
@@ -27,29 +36,36 @@ export async function GET(request: Request) {
   const challenge = searchParams.get("hub.challenge");
 
   if (!mode || !topic || !challenge) {
-    console.error("❌ Missing required verification parameters");
+    logger.error("Missing required verification parameters", {
+      prefix: "YouTube Webhook",
+    });
     return new Response("Bad Request: Missing Parameters", { status: 400 });
   }
 
   // Verify the subscription request
   if (mode === "subscribe" || mode === "unsubscribe") {
-    console.log("✅ Verification successful");
-    // Return the challenge code to confirm the subscription
+    logger.info("Verification successful", { prefix: "YouTube Webhook" });
     return new Response(challenge, { status: 200 });
   }
 
-  console.error("❌ Invalid hub mode:", mode);
+  logger.error("Invalid hub mode", {
+    prefix: "YouTube Webhook",
+    data: { mode },
+  });
   return new Response("Bad Request: Invalid Mode", { status: 400 });
 }
 
 export async function POST(request: Request) {
   const startTime = performance.now();
-  console.log("🔔 Received content notification");
+  logger.info("Received content notification", { prefix: "YouTube Webhook" });
 
   try {
     // Get the raw body
     const rawBody = await request.text();
-    console.log("📦 Received payload size:", rawBody.length, "bytes");
+    logger.info("Received payload", {
+      prefix: "YouTube Webhook",
+      data: { size: `${rawBody.length} bytes` },
+    });
 
     // Parse XML content
     const parser = new xml2js.Parser();
@@ -69,16 +85,21 @@ export async function POST(request: Request) {
     const published = entry.published[0];
     const updated = entry.updated[0];
 
-    console.log("📺 Video details:", {
-      videoId,
-      channelId,
-      title,
-      authorName,
-      published: published,
-      updated: updated,
+    logger.info("Video details", {
+      prefix: "YouTube Webhook",
+      data: {
+        videoId,
+        channelId,
+        title,
+        authorName,
+        published,
+        updated,
+      },
     });
 
-    console.log("📦 Queueing video data for processing");
+    logger.info("Queueing video data for processing", {
+      prefix: "YouTube Webhook",
+    });
 
     // Use internal fetch instead of direct fetch
     const queueResponse = await internalFetch("/api/youtube/queue", {
@@ -104,23 +125,22 @@ export async function POST(request: Request) {
     }
 
     const endTime = performance.now();
-    console.log(
-      `⏱️ Notification processed in ${(endTime - startTime).toFixed(2)}ms`
-    );
+    logger.info("Notification processed successfully", {
+      prefix: "YouTube Webhook",
+      data: { duration: `${(endTime - startTime).toFixed(2)}ms` },
+    });
 
-    // Return 200 to acknowledge receipt
     return new Response("OK", { status: 200 });
   } catch (error) {
     const endTime = performance.now();
-    console.error("💥 Error processing notification:", error);
-    console.error("Failed after:", (endTime - startTime).toFixed(2), "ms");
-
-    if (error instanceof Error) {
-      console.error("Error details:", {
-        message: error.message,
-        cause: error.cause,
-      });
-    }
+    logger.error("Error processing notification", {
+      prefix: "YouTube Webhook",
+      data: {
+        duration: `${(endTime - startTime).toFixed(2)}ms`,
+        error: error instanceof Error ? error.message : "Unknown error",
+        cause: error instanceof Error ? error.cause : undefined,
+      },
+    });
 
     return new Response("Internal Server Error", { status: 500 });
   }

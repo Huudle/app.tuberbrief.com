@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { supabaseAnon } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { logger } from "@/lib/logger";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -27,12 +28,17 @@ function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Login attempt started:", { email: formData.email });
+    logger.info("Login attempt started", {
+      prefix: "Auth",
+      data: { email: formData.email },
+    });
     setError(null);
     setLoading(true);
 
     try {
-      console.log("Attempting to sign in with Supabase...");
+      logger.debug("Attempting to sign in with Supabase", {
+        prefix: "Auth",
+      });
       const { data, error: signInError } =
         await supabaseAnon.auth.signInWithPassword({
           email: formData.email,
@@ -40,7 +46,10 @@ function LoginForm() {
         });
 
       if (signInError) {
-        console.error("Supabase signin error:", signInError);
+        logger.error("Supabase signin error", {
+          prefix: "Auth",
+          data: { error: signInError.message },
+        });
         throw signInError;
       }
 
@@ -61,17 +70,24 @@ function LoginForm() {
           throw new Error("Failed to set session cookie");
         }
 
-        console.log("Redirecting to dashboard...");
+        logger.info("Login successful, redirecting to dashboard", {
+          prefix: "Auth",
+          data: { userId: data.session.user.id },
+        });
         window.location.href = "/dashboard/channels";
       } else {
-        console.error("No session data received from Supabase");
+        logger.error("No session data received from Supabase", {
+          prefix: "Auth",
+        });
         throw new Error("No session returned from login");
       }
     } catch (err) {
-      console.error("Login error:", {
-        error: err,
-        message: err instanceof Error ? err.message : "Unknown error",
-        stack: err instanceof Error ? err.stack : undefined,
+      logger.error("Login error", {
+        prefix: "Auth",
+        data: {
+          error: err instanceof Error ? err.message : "Unknown error",
+          stack: err instanceof Error ? err.stack : undefined,
+        },
       });
       setError(err instanceof Error ? err.message : "An error occurred");
       setLoading(false);

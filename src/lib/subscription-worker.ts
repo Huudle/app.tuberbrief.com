@@ -1,5 +1,6 @@
 import { supabaseServicePublic } from "@/lib/supabase";
 import { managePubSubHubbub } from "@/lib/pubsub";
+import { logger } from "@/lib/logger";
 
 const POLLING_INTERVAL =
   process.env.NODE_ENV === "production" ? 3600000 : 60000; // 1 hour in prod, 1 minute in dev
@@ -11,29 +12,42 @@ export class SubscriptionWorker {
 
   async start() {
     this.isRunning = true;
-    console.log("🔄 Starting subscription renewal worker");
+    logger.info("🔄 Starting subscription renewal worker", {
+      prefix: "Subscription Worker",
+    });
 
     while (this.isRunning) {
       try {
         await this.processSubscriptionRenewals();
         await new Promise((resolve) => setTimeout(resolve, POLLING_INTERVAL));
       } catch (error) {
-        console.error("💥 Subscription worker error:", error);
+        logger.error("💥 Subscription worker error:", {
+          prefix: "Subscription Worker",
+          data: {
+            error: error instanceof Error ? error.message : "Unknown error",
+          },
+        });
       }
     }
   }
 
   stop() {
     this.isRunning = false;
-    console.log("🛑 Stopping subscription renewal worker");
+    logger.info("🛑 Stopping subscription renewal worker", {
+      prefix: "Subscription Worker",
+    });
   }
 
   private async processSubscriptionRenewals() {
     try {
       // Return if not in production
       if (process.env.NODE_ENV !== "production") {
-        console.log(
-          "🚫 Subscription worker not running in non-production environment"
+        logger.info(
+          "🚫 Subscription worker not running in non-production environment",
+          {
+            prefix: "Subscription Worker",
+            data: { environment: process.env.NODE_ENV },
+          }
         );
         return;
       }
@@ -52,17 +66,26 @@ export class SubscriptionWorker {
 
       if (error) throw error;
       if (!channels?.length) {
-        console.log("✨ No channels need renewal");
+        logger.info("✨ No channels need renewal", {
+          prefix: "Subscription Worker",
+        });
         return;
       }
 
-      console.log(`🔄 Processing ${channels.length} channel renewals`);
+      logger.info(`🔄 Processing ${channels.length} channel renewals`, {
+        prefix: "Subscription Worker",
+        data: { batchSize: channels.length },
+      });
 
       // Process each channel
       for (const channel of channels) {
         try {
-          console.log(
-            `📡 Renewing subscription for channel: ${channel.youtube_channel_id}`
+          logger.info(
+            `📡 Renewing subscription for channel: ${channel.youtube_channel_id}`,
+            {
+              prefix: "Subscription Worker",
+              data: { channelId: channel.youtube_channel_id },
+            }
           );
 
           // Attempt to subscribe
@@ -80,28 +103,53 @@ export class SubscriptionWorker {
             .eq("youtube_channel_id", channel.youtube_channel_id);
 
           if (updateError) {
-            console.error(
+            logger.error(
               `❌ Failed to update subscription timestamp for ${channel.youtube_channel_id}:`,
-              updateError
+              {
+                prefix: "Subscription Worker",
+                data: {
+                  channelId: channel.youtube_channel_id,
+                  error: updateError.message,
+                },
+              }
             );
             continue;
           }
 
-          console.log(
-            `✅ Successfully renewed subscription for ${channel.youtube_channel_id}`
+          logger.info(
+            `✅ Successfully renewed subscription for ${channel.youtube_channel_id}`,
+            {
+              prefix: "Subscription Worker",
+              data: {
+                channelId: channel.youtube_channel_id,
+                callbackUrl,
+              },
+            }
           );
         } catch (channelError) {
-          console.error(
-            `❌ Failed to renew subscription for ${channel.youtube_channel_id}`
-          );
-          console.error(
-            `❌ Error processing channel ${channel.youtube_channel_id}:`,
-            channelError
+          logger.error(
+            `❌ Failed to renew subscription for ${channel.youtube_channel_id}`,
+            {
+              prefix: "Subscription Worker",
+              data: {
+                channelId: channel.youtube_channel_id,
+                error:
+                  channelError instanceof Error
+                    ? channelError.message
+                    : "Unknown error",
+              },
+            }
           );
         }
       }
     } catch (error) {
-      console.error("💥 Subscription renewal error:", error);
+      logger.error("💥 Subscription renewal error:", {
+        prefix: "Subscription Worker",
+        data: {
+          error: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+        },
+      });
     }
   }
 }

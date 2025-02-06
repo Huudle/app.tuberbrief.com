@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { Video } from "@/lib/types";
+import { logger } from "@/lib/logger";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -16,14 +17,19 @@ export const generateVideoSummary = async (
   language: string = "en"
 ): Promise<Summary | null> => {
   try {
-    console.log(`[Summarizer] Generating summary for video: ${video.title}`);
-    console.log(`[Summarizer] Using language: ${language}`);
-    console.log(`[Summarizer] Transcript length: ${transcript.length} chars`);
+    logger.info("🤖 Generating summary for video", {
+      prefix: "AI",
+      data: {
+        title: video.title,
+        language,
+        transcriptLength: transcript.length,
+      },
+    });
 
     if (!process.env.OPENAI_API_KEY) {
-      console.log(
-        "[Summarizer] No OpenAI API key found, skipping summary generation"
-      );
+      logger.warn("🔑 No OpenAI API key found, skipping summary generation", {
+        prefix: "AI",
+      });
       return null;
     }
 
@@ -44,7 +50,10 @@ Transcript:
 ${transcript}
 `;
 
-    console.log(`[Summarizer] Using ${language} for output`);
+    logger.debug("🌐 Using language for output", {
+      prefix: "AI",
+      data: { language },
+    });
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -62,9 +71,16 @@ ${transcript}
     });
 
     const content = response.choices[0]?.message?.content;
-    console.log("[Summarizer] OpenAI response:", content);
+    logger.debug("📝 OpenAI response received", {
+      prefix: "AI",
+      data: { content },
+    });
+
     if (!content) {
-      console.error("[Summarizer] No content in OpenAI response");
+      logger.error("❌ No content in OpenAI response", {
+        prefix: "AI",
+        data: { response },
+      });
       return null;
     }
 
@@ -74,18 +90,33 @@ ${transcript}
         .replace(/^```json\n/, "") // Remove opening ```json
         .replace(/\n```$/, ""); // Remove closing ```
       const summary = JSON.parse(cleanedContent) as Summary;
-      console.log("[Summarizer] Summary generated successfully");
+      logger.info("✅ Summary generated successfully", {
+        prefix: "AI",
+        data: {
+          summaryLength: summary.briefSummary.length,
+          pointsCount: summary.keyPoints.length,
+        },
+      });
       return summary;
     } catch (parseError) {
-      console.error(
-        "[Summarizer] Error parsing GPT response as JSON:",
-        parseError
-      );
-      console.error("[Summarizer] Raw response:", content);
+      logger.error("🚨 Error parsing GPT response as JSON", {
+        prefix: "AI",
+        data: {
+          error:
+            parseError instanceof Error ? parseError.message : "Unknown error",
+          rawContent: content,
+        },
+      });
       return null;
     }
   } catch (error) {
-    console.error("[Summarizer] Error generating summary:", error);
+    logger.error("💥 Error generating summary", {
+      prefix: "AI",
+      data: {
+        error: error instanceof Error ? error.message : "Unknown error",
+        videoTitle: video.title,
+      },
+    });
     throw error;
   }
 };
