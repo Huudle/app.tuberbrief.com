@@ -66,9 +66,13 @@ Important:
     "briefSummary": "your summary here",
     "keyPoints": ["point 1", "point 2", "point 3"]
   }
-${transcript.length < 50 ? `
+${
+  transcript.length < 50
+    ? `
 Note: This transcript appears to be very short or incomplete. Please include this limitation in your summary.
-` : ""}
+`
+    : ""
+}
 
 Transcript:
 ${transcript || "No transcript available"}
