@@ -2,6 +2,8 @@ interface TranscriptResponse {
   content: string | TranscriptSegment[];
   lang: string;
   availableLangs: string[];
+  error?: string;
+  message?: string;
 }
 
 export interface TranscriptSegment {

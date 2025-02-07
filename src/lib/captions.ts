@@ -79,8 +79,21 @@ const fetchVideoCaption = async (video: Video): Promise<CaptionData | null> => {
       data: { transcriptResponse },
     });
 
+    // Handle error response from transcript service
+    if (transcriptResponse?.error) {
+      logger.warn("⚠️ Error fetching transcript", {
+        prefix: "Captions",
+        data: { videoId: video.id, message: transcriptResponse.message },
+      });
+      return {
+        transcript: "",
+        language: "",
+        duration: 0,
+      };
+    }
+
     if (!transcriptResponse) {
-      logger.warn("⚠️ No transcript is available for this video", {
+      logger.warn("⚠️ Invalid transcript response", {
         prefix: "Captions",
         data: { videoId: video.id },
       });
