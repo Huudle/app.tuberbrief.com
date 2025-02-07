@@ -40,23 +40,23 @@ export async function writeLogEntry(logEntry: {
   try {
     // Format the log entry similar to logger.ts console output
     const parts = [];
-    
+
     // Add timestamp
     parts.push(`[${logEntry.timestamp || new Date().toISOString()}]`);
-    
+
     // Add level in uppercase
     if (logEntry.level) {
       parts.push(`[${logEntry.level.toUpperCase()}]`);
     }
-    
+
     // Add prefix if exists
     if (logEntry.prefix) {
       parts.push(`[${logEntry.prefix}]`);
     }
-    
+
     // Add message
     parts.push(logEntry.message);
-    
+
     // Add data if exists
     if (logEntry.data) {
       parts.push(JSON.stringify(logEntry.data, null, 2));
