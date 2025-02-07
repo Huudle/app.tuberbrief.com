@@ -33,6 +33,27 @@ export const generateVideoSummary = async (
       return null;
     }
 
+    // Handle empty transcript case
+    if (!transcript) {
+      logger.warn("📝 Empty transcript provided", {
+        prefix: "AI",
+        data: { videoId: video.id },
+      });
+      return {
+        briefSummary: "No transcript available for this video.",
+        keyPoints: ["Transcript unavailable", "Cannot generate summary"],
+      };
+    }
+
+    // Handle empty or unknown language
+    if (!language) {
+      logger.warn("🌐 No language specified, defaulting to English", {
+        prefix: "AI",
+        data: { videoId: video.id },
+      });
+      language = "en";
+    }
+
     const prompt = `
 Please analyze this YouTube video transcript and provide:
 1. A concise summary (2-3 sentences)
@@ -45,9 +66,12 @@ Important:
     "briefSummary": "your summary here",
     "keyPoints": ["point 1", "point 2", "point 3"]
   }
+${transcript.length < 50 ? `
+Note: This transcript appears to be very short or incomplete. Please include this limitation in your summary.
+` : ""}
 
 Transcript:
-${transcript}
+${transcript || "No transcript available"}
 `;
 
     logger.debug("🌐 Using language for output", {
@@ -60,7 +84,7 @@ ${transcript}
       messages: [
         {
           role: "system",
-          content: `You are a skilled content analyzer. Provide concise, informative summaries in "${language}" language. Always format your response as a valid JSON object.`,
+          content: `You are a skilled content analyzer. Provide concise, informative summaries in "${language}" language. Always format your response as a valid JSON object. If the transcript is missing or very short, acknowledge this limitation in your summary.`,
         },
         {
           role: "user",
