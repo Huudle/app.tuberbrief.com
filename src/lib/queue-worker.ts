@@ -81,6 +81,10 @@ export class QueueWorker {
       });
 
       const deleteMessage = async () => {
+        logger.info("🔍 Deleting message from queue", {
+          prefix: "Queue",
+          data: { msgId: queueMessage?.msg_id },
+        });
         await this.supabasePGMQ.rpc("delete", {
           queue_name: QUEUE_NAME,
           msg_id: queueMessage?.msg_id,
@@ -115,9 +119,36 @@ export class QueueWorker {
         return;
       }
 
-      logger.debug("🔍 Channel is subscribed", {
+      // Check if any subscribers are within their plan limits
+      const { data: eligibleProfiles } = await this.supabasePublic.rpc(
+        "get_eligible_notification_profiles",
+        { channel_id_param: message.channelId }
+      );
+
+      logger.info("Checking eligible profiles", {
         prefix: "Queue",
-        data: { channelId: message.channelId },
+        data: {
+          total: channelData?.length ?? 0,
+          eligible: eligibleProfiles?.length ?? 0,
+        },
+      });
+
+      if (!eligibleProfiles || eligibleProfiles.length === 0) {
+        logger.info("No eligible profiles found - all subscribers at limit", {
+          prefix: "Queue",
+          data: { channelId: message.channelId },
+        });
+        await deleteMessage();
+        return;
+      }
+
+      // Continue with video processing since we have eligible subscribers
+      logger.info("Found eligible profiles, continuing processing", {
+        prefix: "Queue",
+        data: {
+          eligibleCount: eligibleProfiles.length,
+          videoId: message.videoId,
+        },
       });
 
       if (!message.videoId || !message.channelId) {
@@ -242,16 +273,21 @@ export class QueueWorker {
         });
         return;
       }
-      // Create notifications with AI-enhanced content
-      const notifications = newSubscribers.map((sub) => ({
-        profile_id: sub.profile_id,
-        channel_id: message.channelId,
-        video_id: message.videoId,
-        title: message.title,
-        email_content: emailContent.replace(/\n/g, ""),
-        status: "pending",
-        created_at: new Date().toISOString(),
-      }));
+      // When creating notifications, only create for eligible profiles
+      const eligibleProfileIds = new Set(
+        eligibleProfiles.map((p) => p.profile_id)
+      );
+      const notifications = newSubscribers
+        .filter((sub) => eligibleProfileIds.has(sub.profile_id))
+        .map((sub) => ({
+          profile_id: sub.profile_id,
+          channel_id: message.channelId,
+          video_id: message.videoId,
+          title: message.title,
+          email_content: emailContent.replace(/\n/g, ""),
+          status: "pending",
+          created_at: new Date().toISOString(),
+        }));
       logger.info("📧 Creating notifications", {
         prefix: "Queue",
         data: {
