@@ -6,14 +6,14 @@ const PUBSUBHUBBUB_HUB_URL = "https://pubsubhubbub.appspot.com/subscribe";
 
 export async function POST(request: Request) {
   const startTime = performance.now();
-  logger.info("Starting PubSubHubbub subscription request", {
+  logger.info("🚀 Starting PubSubHubbub subscription request", {
     prefix: "PubSubHubbub",
   });
 
   try {
     const body = await request.json();
     const { callbackUrl, topicUrl, mode = "subscribe" } = body;
-    logger.info("Request body:", {
+    logger.info("📝 Request body:", {
       prefix: "PubSubHubbub",
       data: {
         callbackUrl,
@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     });
 
     if (!callbackUrl || !topicUrl) {
-      logger.warn("Missing required parameters", { prefix: "PubSubHubbub" });
+      logger.warn("⚠️ Missing required parameters", { prefix: "PubSubHubbub" });
       return NextResponse.json(
         { error: "Callback URL and Topic URL are required" },
         { status: 400 }
@@ -35,7 +35,10 @@ export async function POST(request: Request) {
 
     // Validate mode
     if (mode !== "subscribe" && mode !== "unsubscribe") {
-      logger.warn("Invalid mode:", { prefix: "PubSubHubbub", data: { mode } });
+      logger.warn("⚠️ Invalid mode:", {
+        prefix: "PubSubHubbub",
+        data: { mode },
+      });
       return NextResponse.json(
         { error: "Mode must be either 'subscribe' or 'unsubscribe'" },
         { status: 400 }
@@ -52,21 +55,23 @@ export async function POST(request: Request) {
     // Optional parameters
     if (body.verifyToken) {
       formData.append("hub.verify_token", body.verifyToken);
-      logger.info("Added verify token to request", { prefix: "PubSubHubbub" });
+      logger.info("🔑 Added verify token to request", {
+        prefix: "PubSubHubbub",
+      });
     }
     if (body.secret) {
       formData.append("hub.secret", body.secret);
-      logger.info("Added secret to request", { prefix: "PubSubHubbub" });
+      logger.info("🔒 Added secret to request", { prefix: "PubSubHubbub" });
     }
     if (body.leaseSeconds) {
       formData.append("hub.lease_seconds", body.leaseSeconds.toString());
-      logger.info("Added lease seconds", {
+      logger.info("⏱️ Added lease seconds", {
         prefix: "PubSubHubbub",
         data: { leaseSeconds: body.leaseSeconds },
       });
     }
 
-    logger.info("Sending request to PubSubHubbub hub...", {
+    logger.info("📤 Sending request to PubSubHubbub hub...", {
       prefix: "PubSubHubbub",
     });
     // Submit the form
@@ -82,7 +87,7 @@ export async function POST(request: Request) {
       },
     });
 
-    logger.info("Response details", {
+    logger.info("📥 Response details", {
       prefix: "PubSubHubbub",
       data: {
         status: response.status,
@@ -92,7 +97,7 @@ export async function POST(request: Request) {
     });
 
     const endTime = performance.now();
-    logger.info("Subscription request successful", {
+    logger.info("✅ Subscription request successful", {
       prefix: "PubSubHubbub",
       data: { duration: `${(endTime - startTime).toFixed(2)}ms` },
     });
@@ -104,7 +109,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     const endTime = performance.now();
-    logger.error("PubSubHubbub subscription error", {
+    logger.error("💥 PubSubHubbub subscription error", {
       prefix: "PubSubHubbub",
       data: {
         duration: `${(endTime - startTime).toFixed(2)}ms`,
@@ -113,7 +118,7 @@ export async function POST(request: Request) {
     });
 
     if (axios.isAxiosError(error)) {
-      logger.error("Detailed error information", {
+      logger.error("❌ Detailed error information", {
         prefix: "PubSubHubbub",
         data: {
           status: error.response?.status,
@@ -137,7 +142,7 @@ export async function POST(request: Request) {
 // Example usage for subscription details
 export async function GET(request: Request) {
   const startTime = performance.now();
-  logger.info("Starting PubSubHubbub subscription details request", {
+  logger.info("🚀 Starting PubSubHubbub subscription details request", {
     prefix: "PubSubHubbub",
   });
 
@@ -147,7 +152,7 @@ export async function GET(request: Request) {
     const topicUrl = searchParams.get("hub.topic");
     const secret = searchParams.get("hub.secret");
 
-    logger.info("Query parameters", {
+    logger.info("📝 Query parameters", {
       prefix: "PubSubHubbub",
       data: {
         callbackUrl,
@@ -157,7 +162,7 @@ export async function GET(request: Request) {
     });
 
     if (!callbackUrl || !topicUrl) {
-      logger.warn("Missing required parameters", { prefix: "PubSubHubbub" });
+      logger.warn("⚠️ Missing required parameters", { prefix: "PubSubHubbub" });
       return NextResponse.json(
         { error: "Callback URL and Topic URL are required" },
         { status: 400 }
@@ -171,10 +176,10 @@ export async function GET(request: Request) {
 
     if (secret) {
       params.append("hub.secret", secret);
-      logger.info("Added secret to request", { prefix: "PubSubHubbub" });
+      logger.info("🔒 Added secret to request", { prefix: "PubSubHubbub" });
     }
 
-    logger.info("Sending request to get subscription details...", {
+    logger.info("📤 Sending request to get subscription details...", {
       prefix: "PubSubHubbub",
     });
     const response = await axios.get(
@@ -182,7 +187,7 @@ export async function GET(request: Request) {
     );
 
     const endTime = performance.now();
-    logger.info("Successfully retrieved subscription details", {
+    logger.info("✅ Successfully retrieved subscription details", {
       prefix: "PubSubHubbub",
       data: {
         duration: `${(endTime - startTime).toFixed(2)}ms`,
@@ -193,7 +198,7 @@ export async function GET(request: Request) {
     return NextResponse.json(response.data);
   } catch (error) {
     const endTime = performance.now();
-    logger.error("PubSubHubbub details error", {
+    logger.error("💥 PubSubHubbub details error", {
       prefix: "PubSubHubbub",
       data: {
         duration: `${(endTime - startTime).toFixed(2)}ms`,
@@ -202,7 +207,7 @@ export async function GET(request: Request) {
     });
 
     if (axios.isAxiosError(error)) {
-      logger.error("Detailed error information", {
+      logger.error("❌ Detailed error information", {
         prefix: "PubSubHubbub",
         data: {
           status: error.response?.status,
