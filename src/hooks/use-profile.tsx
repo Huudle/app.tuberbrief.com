@@ -2,16 +2,34 @@
 
 import * as React from "react";
 import { supabaseAnon } from "@/lib/supabase";
-import { UserPlan } from "@/lib/constants";
 import { getDefaultAvatar } from "@/lib/utils";
+import { logger } from "@/lib/logger";
+import { UserPlan } from "@/lib/constants";
+
+interface Plan {
+  id: string;
+  plan_name: UserPlan;
+  monthly_email_limit: number;
+  monthly_cost: number;
+  channel_limit: number;
+  features: Record<string, unknown>;
+}
+
+interface Subscription {
+  id: string;
+  profile_id: string;
+  plan: Plan;
+  // Add other subscription fields if needed
+}
 
 interface Profile {
   id: string;
   first_name: string | null;
   last_name: string | null;
   email: string | null;
-  plan: UserPlan;
   avatar_url: string | null;
+  plan: UserPlan; // Keep for backward compatibility
+  subscription: Subscription | null;
 }
 
 interface ProfileContext {
@@ -69,9 +87,21 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
       const { data: profile, error } = await supabaseAnon
         .from("profiles")
-        .select("*")
+        .select(
+          `
+          *,
+          subscription:subscriptions(
+            plan:plans(*)
+          )
+        `
+        )
         .eq("id", user.id)
         .single();
+
+      logger.info("Profile data", {
+        prefix: "ProfileProvider",
+        data: profile,
+      });
 
       if (error) throw error;
 
@@ -80,6 +110,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         email: user.email,
         avatar_url:
           profile.avatar_url || getDefaultAvatar({ email: profile.email }),
+        plan:
+          (profile.subscription?.plan.plan_name.toLowerCase() as UserPlan) ||
+          "free",
       };
 
       setProfile(profileData);
