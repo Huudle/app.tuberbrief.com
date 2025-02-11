@@ -28,7 +28,7 @@ async function subscribeToPubSubHubbub(channelId: string): Promise<string> {
     data: { channelId },
   });
   const ngrokUrl =
-    "https://91e4-2a02-4d19-94c-a50c-1355-d6b7-1ee3.ngrok-free.app";
+    "https://0872-2a02-4e0-2d14-76e-95e7-d8e0-a8a8-34ee.ngrok-free.app";
   const callbackUrl = await managePubSubHubbub({
     channelId,
     mode: "subscribe",
@@ -45,11 +45,25 @@ export default function AddChannelPage() {
   const [currentChannels, setCurrentChannels] = useState<number | null>(null);
   const router = useRouter();
 
-  // Check if user has reached their plan limit
-  const hasReachedLimit =
-    profile &&
-    currentChannels != null &&
-    currentChannels >= PLAN_LIMITS[profile.plan];
+  // Check channel limit before allowing new channel creation
+  const channelLimit = profile?.subscription?.plan.channel_limit ?? 0;
+  logger.info("Channel limit", {
+    prefix: "Channels",
+    data: { channelLimit },
+  });
+  const currentChannelCount = currentChannels ?? 0;
+  logger.info("Current channel count", {
+    prefix: "Channels",
+    data: { currentChannelCount },
+  });
+  const hasReachedLimit = currentChannelCount >= channelLimit;
+  logger.info("Has reached limit", {
+    prefix: "Channels",
+    data: { hasReachedLimit },
+  });
+  if (hasReachedLimit) {
+    // Show upgrade message
+  }
 
   useEffect(() => {
     async function loadChannels() {
@@ -132,6 +146,10 @@ export default function AddChannelPage() {
     }
 
     // 3. Plan limits check (existing)
+    const hasReachedLimit =
+      currentChannelCount != null &&
+      currentChannelCount >= PLAN_LIMITS[profile.plan];
+
     if (hasReachedLimit) {
       setError(
         `You've reached the limit of ${
