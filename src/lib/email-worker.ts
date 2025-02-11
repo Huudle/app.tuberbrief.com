@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { supabaseServicePublic } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
+import { incrementSubscriptionUsage } from "@/lib/supabase";
 
 const POLLING_INTERVAL = 20000;
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -86,6 +87,9 @@ export class EmailWorker {
             html: notification.email_content,
             text: notification.email_content.replace(/<[^>]*>/g, ""), // Provide plain text fallback
           });
+
+          // Update usage count
+          await incrementSubscriptionUsage(notification.profile_id);
 
           // Update notification status
           const { error: updateError } = await this.supabasePublic
