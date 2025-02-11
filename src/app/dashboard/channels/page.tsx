@@ -31,7 +31,7 @@ import { logger } from "@/lib/logger";
 async function unsubscribeFromPubSubHubbub(channelId: string): Promise<void> {
   logger.info("🔔 Unsubscribing from PubSubHubbub");
   const ngrokUrl =
-    "https://91e4-2a02-4e0-2d19-94c-a50c-1355-d6b7-1ee3.ngrok-free.app";
+    "https://0872-2a02-4e0-2d14-76e-95e7-d8e0-a8a8-34ee.ngrok-free.app";
   await managePubSubHubbub({
     channelId,
     mode: "unsubscribe",
