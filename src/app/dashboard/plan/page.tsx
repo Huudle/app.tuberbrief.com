@@ -14,23 +14,108 @@ import {
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabaseAnon } from "@/lib/supabase";
-import { PLANS, UserPlan } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/use-profile";
 
-function formatPrice(amount: number, currency: string) {
+interface PlanFeatures {
+  plan: {
+    name: string;
+    description: string;
+    highlight: string;
+  };
+  limits: {
+    channels: number;
+    notifications: number;
+    description: string;
+  };
+  transcription: {
+    enabled: boolean;
+    description: string;
+    tooltip: string;
+    disabled_message?: string;
+  };
+  ai_summary: {
+    enabled: boolean;
+    description: string;
+    tooltip: string;
+    disabled_message?: string;
+  };
+  instant_notification: {
+    enabled: boolean;
+    description: string;
+    tooltip: string;
+    disabled_message?: string;
+  };
+  webhooks: {
+    enabled: boolean;
+    description: string;
+    tooltip: string;
+    disabled_message?: string;
+  };
+  priority_support: {
+    enabled: boolean;
+    description: string;
+    tooltip: string;
+    disabled_message?: string;
+  };
+  notifications: {
+    type: string;
+    description: string;
+    tooltip: string;
+    upgrade_message?: string;
+  };
+}
+
+interface Plan {
+  id: string;
+  plan_name: string;
+  monthly_email_limit: number;
+  monthly_cost: number;
+  channel_limit: number;
+  features: PlanFeatures;
+  stripe_price_id: string;
+}
+
+function formatPrice(amount: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
-    currency,
-    minimumFractionDigits: 0,
+    currency: "USD",
+    minimumFractionDigits: 2,
   }).format(amount);
 }
 
 export default function PlanPage() {
-  const { profile, isLoading, refreshProfile } = useProfile();
+  const { profile, isLoading: profileLoading, refreshProfile } = useProfile();
+  const [plans, setPlans] = React.useState<Plan[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
 
-  const handleUpdatePlan = async (planId: UserPlan) => {
+  React.useEffect(() => {
+    async function fetchPlans() {
+      try {
+        const { data, error } = await supabaseAnon
+          .from("plans")
+          .select("*")
+          .order("monthly_cost", { ascending: true });
+
+        if (error) throw error;
+        setPlans(data);
+      } catch (error) {
+        console.error("Error fetching plans:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load plans. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchPlans();
+  }, [toast]);
+
+  const handleUpdatePlan = async (planId: string) => {
     // Prevent plan changes temporarily
     toast({
       title: "Plan Changes Disabled",
@@ -38,45 +123,11 @@ export default function PlanPage() {
         "Plan changes are temporarily disabled. Please check back later.",
     });
     return;
-
-    try {
-      const {
-        data: { user },
-      } = await supabaseAnon.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { error } = await supabaseAnon
-        .from("profiles")
-        .update({
-          plan: planId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user?.id);
-
-      if (error) throw error;
-
-      await refreshProfile();
-
-      toast({
-        title: "Plan Updated",
-        description: `Successfully switched to ${PLANS[planId].name} plan`,
-      });
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to update plan. Please try again.",
-        variant: "destructive",
-      });
-    }
   };
 
-  if (isLoading) {
+  if (isLoading || profileLoading) {
     return (
-      <AppLayout
-        breadcrumbs={[
-          { label: "Plans", active: true },
-        ]}
-      >
+      <AppLayout breadcrumbs={[{ label: "Plans", active: true }]}>
         <div className="w-full max-w-5xl space-y-6">
           <div>
             <h1 className="text-2xl font-bold">Plans</h1>
@@ -115,11 +166,7 @@ export default function PlanPage() {
   }
 
   return (
-    <AppLayout
-      breadcrumbs={[
-        { label: "Plans", active: true },
-      ]}
-    >
+    <AppLayout breadcrumbs={[{ label: "Plans", active: true }]}>
       <div className="w-full max-w-5xl space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Plans</h1>
@@ -132,19 +179,17 @@ export default function PlanPage() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          {(
-            Object.entries(PLANS) as [UserPlan, (typeof PLANS)[UserPlan]][]
-          ).map(([planId, plan]) => (
+          {plans.map((plan) => (
             <Card
-              key={planId}
+              key={plan.id}
               className={cn(
                 "relative cursor-pointer transition-all hover:shadow-md opacity-75",
-                profile?.plan === planId &&
+                profile?.plan === plan.plan_name.toLowerCase() &&
                   "border-primary shadow-sm opacity-100"
               )}
-              onClick={() => handleUpdatePlan(planId)}
+              onClick={() => handleUpdatePlan(plan.id)}
             >
-              {profile?.plan === planId && (
+              {profile?.plan === plan.plan_name.toLowerCase() && (
                 <div className="absolute right-4 top-4">
                   <Check className="h-6 w-6 text-primary" />
                 </div>
@@ -152,8 +197,8 @@ export default function PlanPage() {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {plan.name}
-                    {profile?.plan === planId && (
+                    {plan.features.plan.name}
+                    {profile?.plan === plan.plan_name.toLowerCase() && (
                       <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md">
                         Current plan
                       </span>
@@ -161,12 +206,12 @@ export default function PlanPage() {
                   </div>
                 </CardTitle>
                 <CardDescription className="flex flex-col gap-1">
-                  <span>{plan.description}</span>
+                  <span>{plan.features.plan.description}</span>
                   <span className="inline-flex items-baseline">
                     <span className="text-2xl font-bold text-foreground">
-                      {formatPrice(plan.price.amount, plan.price.currency)}
+                      {formatPrice(plan.monthly_cost)}
                     </span>
-                    {plan.price.amount > 0 && (
+                    {plan.monthly_cost > 0 && (
                       <span className="text-muted-foreground ml-1">/month</span>
                     )}
                   </span>
@@ -175,15 +220,51 @@ export default function PlanPage() {
               <CardContent>
                 <div className="space-y-4">
                   <div className="text-2xl font-bold">
-                    {plan.limit} channels
+                    {plan.monthly_email_limit} notifications
+                    <span className="text-base font-normal text-muted-foreground">
+                      /mo
+                    </span>
                   </div>
                   <ul className="space-y-2.5 text-sm">
-                    {plan.features.map((feature) => (
-                      <li key={feature} className="flex items-center gap-2">
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                      <span>Monitor up to {plan.channel_limit} channels</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                      <span>{plan.features.ai_summary.description}</span>
+                    </li>
+                    {plan.features.transcription.enabled && (
+                      <li className="flex items-center gap-2">
                         <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                        <span>{feature}</span>
+                        <span>{plan.features.transcription.description}</span>
                       </li>
-                    ))}
+                    )}
+                    <li className="flex items-center gap-2">
+                      <Check
+                        className={cn(
+                          "h-4 w-4 flex-shrink-0",
+                          plan.features.notifications.type === "instant"
+                            ? "text-primary"
+                            : "text-muted-foreground"
+                        )}
+                      />
+                      <span>{plan.features.notifications.description}</span>
+                    </li>
+                    {plan.features.webhooks.enabled && (
+                      <li className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                        <span>{plan.features.webhooks.description}</span>
+                      </li>
+                    )}
+                    {plan.features.priority_support.enabled && (
+                      <li className="flex items-center gap-2">
+                        <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                        <span>
+                          {plan.features.priority_support.description}
+                        </span>
+                      </li>
+                    )}
                   </ul>
                 </div>
               </CardContent>
