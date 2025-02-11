@@ -14,13 +14,13 @@ async function internalFetch(path: string, options: RequestInit) {
 }
 
 export async function GET(request: Request) {
-  logger.info("Received hub verification request", {
+  logger.info("🔔 Received hub verification request", {
     prefix: "YouTube Webhook",
   });
   const { searchParams } = new URL(request.url);
 
   // Log verification request details
-  logger.info("Verification parameters", {
+  logger.info("📝 Verification parameters", {
     prefix: "YouTube Webhook",
     data: {
       mode: searchParams.get("hub.mode"),
@@ -44,11 +44,11 @@ export async function GET(request: Request) {
 
   // Verify the subscription request
   if (mode === "subscribe" || mode === "unsubscribe") {
-    logger.info("Verification successful", { prefix: "YouTube Webhook" });
+    logger.info("✅ Verification successful", { prefix: "YouTube Webhook" });
     return new Response(challenge, { status: 200 });
   }
 
-  logger.error("Invalid hub mode", {
+  logger.error("❌ Invalid hub mode", {
     prefix: "YouTube Webhook",
     data: { mode },
   });
@@ -57,12 +57,14 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const startTime = performance.now();
-  logger.info("Received content notification", { prefix: "YouTube Webhook" });
+  logger.info("📨 Received content notification", {
+    prefix: "YouTube Webhook",
+  });
 
   try {
     // Get the raw body
     const rawBody = await request.text();
-    logger.info("Received payload", {
+    logger.info("📦 Received payload", {
       prefix: "YouTube Webhook",
       data: { size: `${rawBody.length} bytes` },
     });
@@ -85,7 +87,7 @@ export async function POST(request: Request) {
     const published = entry.published[0];
     const updated = entry.updated[0];
 
-    logger.info("Video details", {
+    logger.info("📺 Video details", {
       prefix: "YouTube Webhook",
       data: {
         videoId,
@@ -97,7 +99,7 @@ export async function POST(request: Request) {
       },
     });
 
-    logger.info("Queueing video data for processing", {
+    logger.info("🎯 Queueing video data for processing", {
       prefix: "YouTube Webhook",
     });
 
@@ -125,7 +127,7 @@ export async function POST(request: Request) {
     }
 
     const endTime = performance.now();
-    logger.info("Notification processed successfully", {
+    logger.info("✅ Notification processed successfully", {
       prefix: "YouTube Webhook",
       data: { duration: `${(endTime - startTime).toFixed(2)}ms` },
     });
@@ -133,7 +135,7 @@ export async function POST(request: Request) {
     return new Response("OK", { status: 200 });
   } catch (error) {
     const endTime = performance.now();
-    logger.error("Error processing notification", {
+    logger.error("💥 Error processing notification", {
       prefix: "YouTube Webhook",
       data: {
         duration: `${(endTime - startTime).toFixed(2)}ms`,
