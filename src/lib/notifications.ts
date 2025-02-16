@@ -7,7 +7,7 @@ export async function queueLimitAlert(
   profileId: string,
   currentUsage: number,
   monthlyLimit: number,
-  type: "limit_reached" | "approaching_limit" = "limit_reached"
+  type: AlertType = "limit_reached"
 ) {
   logger.info("🔔 Attempting to queue limit alert", {
     prefix: "Notifications",
@@ -31,13 +31,18 @@ export async function queueLimitAlert(
   }
 
   try {
+    const emailContent = generateLimitAlertEmail(
+      type,
+      currentUsage,
+      monthlyLimit
+    );
+
     const { error: insertError } = await supabaseAnon
-      .from("limit_alert_notifications")
+      .from("notification_limit_alerts")
       .insert({
         profile_id: profileId,
         alert_type: type,
-        current_usage: currentUsage,
-        monthly_limit: monthlyLimit,
+        email_content: emailContent,
         status: "pending",
       });
 
@@ -79,76 +84,23 @@ export async function queueLimitAlert(
   }
 }
 
-export async function createLimitAlertNotification(
-  profileId: string,
-  type: AlertType,
-  currentUsage: number,
-  monthlyLimit: number
-) {
-  try {
-    const { data: profile } = await supabaseAnon
-      .from("profiles")
-      .select("email")
-      .eq("id", profileId)
-      .single();
-
-    if (!profile?.email) {
-      throw new Error("Profile email not found");
-    }
-
-    const emailContent = generateLimitAlertEmail(
-      type,
-      currentUsage,
-      monthlyLimit,
-      profile.email
-    );
-
-    const { error: insertError } = await supabaseAnon
-      .from("limit_alert_notifications")
-      .insert({
-        profile_id: profileId,
-        alert_type: type,
-        current_usage: currentUsage,
-        monthly_limit: monthlyLimit,
-        email_content: emailContent,
-        status: "pending",
-      });
-
-    if (insertError) throw insertError;
-
-    logger.info("✅ Limit alert notification created", {
-      prefix: "Notifications",
-      data: { profileId, type },
-    });
-  } catch (error) {
-    logger.error("❌ Error creating limit alert notification", {
-      prefix: "Notifications",
-      data: { error, profileId, type },
-    });
-  }
-}
-
 function generateLimitAlertEmail(
   type: AlertType,
   currentUsage: number,
-  monthlyLimit: number,
-  email: string
+  monthlyLimit: number
 ): string {
   switch (type) {
     case "limit_reached":
       return `
-        <p>Hi ${email},</p>
         <p>You have reached your monthly limit of ${monthlyLimit} notifications.</p>
         <p>Current usage: ${currentUsage}/${monthlyLimit}</p>
         <p>Please upgrade your plan to continue receiving notifications for all your channels.</p>
         <p>Thanks for using Flow Fusion!</p>
       `;
-    case "approaching_limit":
+    case "monthly_reset":
       return `
-        <p>Hi ${email},</p>
-        <p>You're approaching your monthly limit of ${monthlyLimit} notifications.</p>
-        <p>Current usage: ${currentUsage}/${monthlyLimit}</p>
-        <p>Consider upgrading your plan to ensure uninterrupted notifications for all your channels.</p>
+        <p>Your monthly notification limit has been reset.</p>
+        <p>New usage: ${currentUsage}/${monthlyLimit}</p>
         <p>Thanks for using Flow Fusion!</p>
       `;
     default:
