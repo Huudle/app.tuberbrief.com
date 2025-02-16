@@ -28,7 +28,7 @@ async function subscribeToPubSubHubbub(channelId: string): Promise<string> {
     data: { channelId },
   });
   const ngrokUrl =
-    "https://0872-2a02-4e0-2d14-76e-95e7-d8e0-a8a8-34ee.ngrok-free.app";
+    "https://b4ca-2a02-4e0-2d14-76e-145b-f042-77bc-70bc.ngrok-free.app";
   const callbackUrl = await managePubSubHubbub({
     channelId,
     mode: "subscribe",
