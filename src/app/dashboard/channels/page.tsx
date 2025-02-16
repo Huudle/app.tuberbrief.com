@@ -27,11 +27,13 @@ import { PLAN_LIMITS } from "@/lib/constants";
 import { useProfile } from "@/hooks/use-profile";
 import { managePubSubHubbub } from "@/lib/pubsub";
 import { logger } from "@/lib/logger";
+import { UsageBadge } from "@/components/usage-badge";
+import { useSubscriptionUsage } from "@/hooks/use-subscription-usage";
 
 async function unsubscribeFromPubSubHubbub(channelId: string): Promise<void> {
   logger.info("🔔 Unsubscribing from PubSubHubbub");
   const ngrokUrl =
-    "https://0872-2a02-4e0-2d14-76e-95e7-d8e0-a8a8-34ee.ngrok-free.app";
+    "https://b4ca-2a02-4e0-2d14-76e-145b-f042-77bc-70bc.ngrok-free.app";
   await managePubSubHubbub({
     channelId,
     mode: "unsubscribe",
@@ -41,6 +43,9 @@ async function unsubscribeFromPubSubHubbub(channelId: string): Promise<void> {
 
 export default function ChannelsPage() {
   const { profile, isLoading: isLoadingProfile } = useProfile();
+  const { usage, isLoading: isLoadingUsage } = useSubscriptionUsage(
+    profile?.id
+  );
   const [channels, setChannels] = useState<ChannelListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -215,9 +220,19 @@ export default function ChannelsPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold">YouTube Channels</h1>
-          <p className="text-sm text-muted-foreground">
-            Listing {channels.length} of {PLAN_LIMITS[profile.plan]} channels
-          </p>
+          <div className="flex gap-2 mt-1">
+            <UsageBadge
+              currentCount={channels.length}
+              maxCount={PLAN_LIMITS[profile.plan]}
+              label="channels"
+            />
+            {!isLoadingUsage && usage && (
+              <UsageBadge
+                currentCount={usage.currentUsage}
+                maxCount={usage.monthlyLimit}
+              />
+            )}
+          </div>
         </div>
         {channels.length < PLAN_LIMITS[profile.plan] && (
           <Link href="/dashboard/channels/new">
