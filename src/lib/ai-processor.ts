@@ -61,6 +61,7 @@ Please analyze this YouTube video transcript and provide:
 
 Important: 
 - Provide the response in "${language}" language
+- Do not use something like "The transcript discusses" or "The video is about" or anything like that. Just give the summary and the key points.
 - Format your response strictly as a JSON object with these exact fields:
   {
     "briefSummary": "your summary here",
