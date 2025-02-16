@@ -160,7 +160,7 @@ export class EmailWorker {
     });
 
     const { data: alerts, error: fetchError } = await this.supabasePublic
-      .from("limit_alert_notifications")
+      .from("notification_limit_alerts")
       .select("*, profiles(email)")
       .eq("status", "pending")
       .limit(10);
