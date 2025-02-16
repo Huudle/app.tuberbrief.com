@@ -55,7 +55,7 @@ export class EmailWorker {
   private async processEmailNotifications() {
     // Fetch pending notifications
     const { data: notifications, error: fetchError } = await this.supabasePublic
-      .from("email_notifications")
+      .from("notification_emails")
       .select("*, profiles(email), video_captions(title)")
       .eq("status", "pending")
       .limit(10); // Process in batches of 10
@@ -112,7 +112,7 @@ export class EmailWorker {
 
         // Update notification status
         const { error: updateError } = await this.supabasePublic
-          .from("email_notifications")
+          .from("notification_emails")
           .update({
             status: "sent",
             sent_at: new Date().toISOString(),
@@ -145,7 +145,7 @@ export class EmailWorker {
 
         // Update to failed status
         await this.supabasePublic
-          .from("email_notifications")
+          .from("notification_emails")
           .update({
             status: "failed",
           })
@@ -241,7 +241,7 @@ export class EmailWorker {
 
         // Update alert status
         const { error: updateError } = await this.supabasePublic
-          .from("limit_alert_notifications")
+          .from("notification_limit_alerts")
           .update({
             status: "sent",
             sent_at: new Date().toISOString(),
@@ -280,7 +280,7 @@ export class EmailWorker {
         });
 
         await this.supabasePublic
-          .from("limit_alert_notifications")
+          .from("notification_limit_alerts")
           .update({ status: "failed" })
           .eq("id", alert.id);
       }
@@ -303,7 +303,7 @@ export class EmailWorker {
 
   private async processLimitAlertNotifications() {
     const { data: notifications, error: fetchError } = await this.supabasePublic
-      .from("limit_alert_notifications")
+      .from("notification_limit_alerts")
       .select("*, profiles(email)")
       .eq("status", "pending")
       .limit(10);
@@ -321,7 +321,7 @@ export class EmailWorker {
         });
 
         await this.supabasePublic
-          .from("limit_alert_notifications")
+          .from("notification_limit_alerts")
           .update({
             status: "sent",
             sent_at: new Date().toISOString(),
@@ -334,7 +334,7 @@ export class EmailWorker {
         });
       } catch (error) {
         await this.supabasePublic
-          .from("limit_alert_notifications")
+          .from("notification_limit_alerts")
           .update({
             status: "failed",
           })
