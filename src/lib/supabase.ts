@@ -586,6 +586,18 @@ export async function incrementSubscriptionUsage(
 
     if (updateError) throw updateError;
 
+    // Log the usage
+    const { error: logError } = await supabaseAnon
+      .from("subscription_usage_logs")
+      .insert({
+        profile_id: profileId,
+        usage_count: newCount,
+        monthly_limit: monthlyLimit,
+        recorded_at: new Date().toISOString(),
+      });
+
+    if (logError) throw logError;
+
     // Only queue alert when first hitting the limit
     if (willHitLimit) {
       await queueLimitAlert(profileId, newCount, monthlyLimit);
