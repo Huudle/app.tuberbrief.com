@@ -3,8 +3,9 @@ import {
   supabaseServicePublic,
   getStoredAIContent,
   storeAIContent,
+  checkAndAlertIneligibleProfiles,
 } from "@/lib/supabase";
-import { YouTubeQueueMessage, PGMQMessage, Video } from "@/lib/types";
+import { YouTubeQueueMessage, PGMQMessage, Video, EligibleProfile } from "@/lib/types";
 import { fetchCaptions } from "@/lib/captions";
 import { generateEmailTemplate } from "@/lib/email-template";
 import { generateVideoSummary } from "@/lib/ai-processor";
@@ -133,16 +134,30 @@ export class QueueWorker {
         },
       });
 
-      if (!eligibleProfiles || eligibleProfiles.length === 0) {
-        logger.info("No eligible profiles found - all subscribers at limit", {
+      // If we have subscribers but none are eligible, queue alerts
+      if (channelData && channelData.length > 0 && (!eligibleProfiles || eligibleProfiles.length === 0)) {
+        logger.info("No eligible profiles found - queueing limit alerts", {
           prefix: "Queue",
           data: { channelId: message.channelId },
         });
+        await checkAndAlertIneligibleProfiles(message.channelId);
         await deleteMessage();
         return;
       }
 
-      // Continue with video processing since we have eligible subscribers
+      // If we have both ineligible and eligible profiles, queue alerts for ineligible ones
+      if (channelData && eligibleProfiles && channelData.length > eligibleProfiles.length) {
+        logger.info("Some profiles are at limit - queueing alerts", {
+          prefix: "Queue",
+          data: { 
+            total: channelData.length,
+            eligible: eligibleProfiles.length
+          },
+        });
+        await checkAndAlertIneligibleProfiles(message.channelId);
+      }
+
+      // Continue with video processing for eligible subscribers
       logger.info("Found eligible profiles, continuing processing", {
         prefix: "Queue",
         data: {
@@ -275,7 +290,7 @@ export class QueueWorker {
       }
       // When creating notifications, only create for eligible profiles
       const eligibleProfileIds = new Set(
-        eligibleProfiles.map((p) => p.profile_id)
+        eligibleProfiles?.map((p: EligibleProfile) => p.profile_id)
       );
       const notifications = newSubscribers
         .filter((sub) => eligibleProfileIds.has(sub.profile_id))
@@ -311,6 +326,7 @@ export class QueueWorker {
         });
         throw notificationError;
       }
+
       logger.info("✅ Successfully processed video", {
         prefix: "Queue",
         data: { videoId: message.videoId },
