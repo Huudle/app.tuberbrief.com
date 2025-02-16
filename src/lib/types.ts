@@ -188,3 +188,33 @@ export interface VideoAIContent {
   };
   model: string;
 }
+
+export interface EligibleProfile {
+  profile_id: string;
+  email: string;
+  current_usage: number;
+  monthly_limit: number;
+}
+
+export type SubscriptionStatus = "active" | "expired" | "cancelled";
+
+export interface Subscription {
+  id: string;
+  profile_id: string;
+  plan_id: string;
+  status: SubscriptionStatus;
+  usage_count: number;
+  start_date: string;
+  end_date: string | null;
+  plans: {
+    monthly_email_limit: number;
+  };
+}
+
+export enum PlanName {
+  Free = "Free",
+  Basic = "Basic",
+  Pro = "Pro",
+}
+
+export type AlertType = "limit_reached" | "monthly_reset" | "approaching_limit";
