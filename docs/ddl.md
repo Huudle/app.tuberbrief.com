@@ -1,4 +1,4 @@
-create table public.email_notifications (
+create table public.notification_emails (
   id uuid not null default extensions.uuid_generate_v4 (),
   profile_id uuid null,
   channel_id text null,
@@ -8,45 +8,44 @@ create table public.email_notifications (
   created_at timestamp with time zone null default now(),
   sent_at timestamp with time zone null,
   title text null,
-  constraint email_notifications_pkey primary key (id),
-  constraint email_notifications_channel_id_fkey foreign KEY (channel_id) references youtube_channels (id) on delete CASCADE,
-  constraint email_notifications_profile_id_fkey foreign KEY (profile_id) references profiles (id) on delete CASCADE,
-  constraint email_notifications_video_id_fkey foreign KEY (video_id) references video_captions (video_id)
+  constraint notification_emails_pkey primary key (id),
+  constraint notification_emails_channel_id_fkey foreign KEY (channel_id) references youtube_channels (id) on delete CASCADE,
+  constraint notification_emails_profile_id_fkey foreign KEY (profile_id) references profiles (id) on delete CASCADE,
+  constraint notification_emails_video_id_fkey foreign KEY (video_id) references video_captions (video_id)
 ) TABLESPACE pg_default;
 
-create table
-  public.limit_alert_notifications (
-    id uuid not null default gen_random_uuid (),
-    profile_id uuid not null,
-    alert_type text not null,
-    status text not null default 'pending'::text,
-    created_at timestamp with time zone null default now(),
-    sent_at timestamp with time zone null,
-    email_content text null,
-    constraint limit_alert_notifications_pkey primary key (id),
-    constraint limit_alert_notifications_profile_id_fkey foreign key (profile_id) references profiles (id) on delete cascade,
-    constraint valid_alert_type check (
-      (
-        alert_type = any (
-          array['limit_reached'::text, 'monthly_reset'::text]
-        )
-      )
-    ),
-    constraint valid_status check (
-      (
-        status = any (
-          array['pending'::text, 'sent'::text, 'failed'::text]
-        )
+create table public.notification_limit_alerts (
+  id uuid not null default gen_random_uuid (),
+  profile_id uuid not null,
+  alert_type text not null,
+  status text not null default 'pending'::text,
+  created_at timestamp with time zone null default now(),
+  sent_at timestamp with time zone null,
+  email_content text null,
+  constraint notification_limit_alerts_pkey primary key (id),
+  constraint notification_limit_alerts_profile_id_fkey foreign KEY (profile_id) references profiles (id) on delete CASCADE,
+  constraint notification_limit_alerts_alert_type_check check (
+    (
+      alert_type = any (
+        array['limit_reached'::text, 'monthly_reset'::text]
       )
     )
-  ) tablespace pg_default;
+  ),
+  constraint notification_limit_alerts_status_check check (
+    (
+      status = any (
+        array['pending'::text, 'sent'::text, 'failed'::text]
+      )
+    )
+  )
+) TABLESPACE pg_default;
 
-create table public.notification_alerts (
+create table public.notification_alert_logs (
   profile_id uuid not null,
   alert_type text not null,
   sent_at timestamp with time zone null default now(),
-  constraint notification_alerts_profile_fkey foreign KEY (profile_id) references profiles (id) on delete CASCADE,
-  constraint valid_alert_type check (
+  constraint notification_alert_logs_profile_fkey foreign KEY (profile_id) references profiles (id) on delete CASCADE,
+  constraint notification_alert_logs_alert_type_check check (
     (
       alert_type = any (
         array['limit_reached'::text, 'monthly_reset'::text]
@@ -71,17 +70,17 @@ create table public.plans (
 
 create index IF not exists idx_plans_id on public.plans using btree (id) TABLESPACE pg_default;
 
-create table public.profile_youtube_channels (
+create table public.profiles_youtube_channels (
   id uuid not null default gen_random_uuid (),
   created_at timestamp with time zone not null default now(),
   profile_id uuid not null,
   youtube_channel_id text not null,
   subscribed_at timestamp with time zone null,
   callback_url text null,
-  constraint profile_youtube_channels_pkey primary key (id),
-  constraint profile_youtube_channels_profile_id_youtube_channel_id_key unique (profile_id, youtube_channel_id),
-  constraint profile_youtube_channels_profile_id_fkey foreign KEY (profile_id) references profiles (id) on delete CASCADE,
-  constraint profile_youtube_channels_youtube_channel_id_fkey foreign KEY (youtube_channel_id) references youtube_channels (id)
+  constraint profiles_youtube_channels_pkey primary key (id),
+  constraint profiles_youtube_channels_profile_id_youtube_channel_id_key unique (profile_id, youtube_channel_id),
+  constraint profiles_youtube_channels_profile_id_fkey foreign KEY (profile_id) references profiles (id) on delete CASCADE,
+  constraint profiles_youtube_channels_youtube_channel_id_fkey foreign KEY (youtube_channel_id) references youtube_channels (id)
 ) TABLESPACE pg_default;
 
 create table public.profiles (
@@ -136,11 +135,12 @@ create table public.subscriptions (
 ) TABLESPACE pg_default;
 
 create table public.video_ai_content (
+create table public.video_ai_data (
   video_id text not null,
   content jsonb null,
   model text null,
   created_at timestamp with time zone null default timezone ('utc'::text, now()),
-  constraint video_ai_content_pkey primary key (video_id)
+  constraint video_ai_data_pkey primary key (video_id)
 ) TABLESPACE pg_default;
 
 create table public.video_captions (
