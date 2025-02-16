@@ -11,9 +11,14 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabaseAnon } from "@/lib/supabase";
+import {
+  createSubscription,
+  getFreePlanId,
+  supabaseAnon,
+} from "@/lib/supabase";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { logger } from "@/lib/logger";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -73,9 +78,23 @@ export default function SignUpPage() {
 
       if (signUpError) throw signUpError;
 
-      if (data) {
-        // Redirect to login page or dashboard
-        router.push("/login?message=Check your email to confirm your account");
+      if (data?.user?.id) {
+        const planId = await getFreePlanId();
+        // Create initial subscription with free plan
+        const subscription = await createSubscription(data.user.id, planId);
+
+        if (!subscription) {
+          throw new Error("Failed to create subscription");
+        }
+
+        logger.info("✅ User signed up successfully", {
+          prefix: "Signup",
+          data: { userId: data.user.id },
+        });
+
+        router.push("/dashboard");
+      } else {
+        throw new Error("No user ID returned from signup");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
