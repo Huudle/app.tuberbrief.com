@@ -5,7 +5,12 @@ import {
   storeAIContent,
   checkAndAlertIneligibleProfiles,
 } from "@/lib/supabase";
-import { YouTubeQueueMessage, PGMQMessage, Video, EligibleProfile } from "@/lib/types";
+import {
+  YouTubeQueueMessage,
+  PGMQMessage,
+  Video,
+  EligibleProfile,
+} from "@/lib/types";
 import { fetchCaptions } from "@/lib/captions";
 import { generateEmailTemplate } from "@/lib/email-template";
 import { generateVideoSummary } from "@/lib/ai-processor";
@@ -98,7 +103,7 @@ export class QueueWorker {
       });
 
       const { data: channelData } = await this.supabasePublic
-        .from("profile_youtube_channels")
+        .from("profiles_youtube_channels")
         .select("profile_id")
         .eq("youtube_channel_id", message.channelId);
 
@@ -135,7 +140,11 @@ export class QueueWorker {
       });
 
       // If we have subscribers but none are eligible, queue alerts
-      if (channelData && channelData.length > 0 && (!eligibleProfiles || eligibleProfiles.length === 0)) {
+      if (
+        channelData &&
+        channelData.length > 0 &&
+        (!eligibleProfiles || eligibleProfiles.length === 0)
+      ) {
         logger.info("No eligible profiles found - queueing limit alerts", {
           prefix: "Queue",
           data: { channelId: message.channelId },
@@ -146,12 +155,16 @@ export class QueueWorker {
       }
 
       // If we have both ineligible and eligible profiles, queue alerts for ineligible ones
-      if (channelData && eligibleProfiles && channelData.length > eligibleProfiles.length) {
+      if (
+        channelData &&
+        eligibleProfiles &&
+        channelData.length > eligibleProfiles.length
+      ) {
         logger.info("Some profiles are at limit - queueing alerts", {
           prefix: "Queue",
-          data: { 
+          data: {
             total: channelData.length,
-            eligible: eligibleProfiles.length
+            eligible: eligibleProfiles.length,
           },
         });
         await checkAndAlertIneligibleProfiles(message.channelId);
@@ -246,7 +259,7 @@ export class QueueWorker {
 
       // Get subscribers for this channel
       const { data: subscribers } = await this.supabasePublic
-        .from("profile_youtube_channels")
+        .from("profiles_youtube_channels")
         .select("profile_id")
         .eq("youtube_channel_id", message.channelId);
       if (!subscribers) {
@@ -263,7 +276,7 @@ export class QueueWorker {
       });
       // Check existing notifications
       const { data: existingNotifications } = await this.supabasePublic
-        .from("email_notifications")
+        .from("notification_emails")
         .select("profile_id")
         .eq("video_id", message.videoId)
         .in(
@@ -312,7 +325,7 @@ export class QueueWorker {
         },
       });
       const { error: notificationError } = await this.supabasePublic
-        .from("email_notifications")
+        .from("notification_emails")
         .insert(notifications);
       if (notificationError) {
         logger.error("❌ Failed to save notifications", {
