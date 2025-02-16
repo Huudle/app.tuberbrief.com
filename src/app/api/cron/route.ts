@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { QueueWorker } from "@/lib/queue-worker";
 import { EmailWorker } from "@/lib/email-worker";
-import { SubscriptionWorker } from "@/lib/subscription-worker";
+import { YouTubeSubscriptionWorker } from "@/lib/subscription-worker";
 
 // Initialize workers
 const queueWorker = new QueueWorker();
 const emailWorker = new EmailWorker();
-const subscriptionWorker = new SubscriptionWorker();
+const subscriptionWorker = new YouTubeSubscriptionWorker();
 
 // This API endpoint is used to start the workers and it is invoked by the cron job on Supabase
 // For development and staging, the cron job is triggered by the start-cron-*.sh scripts
