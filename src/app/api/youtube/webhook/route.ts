@@ -64,10 +64,25 @@ export async function POST(request: Request) {
   try {
     // Get the raw body
     const rawBody = await request.text();
-    logger.info("📦 Received payload", {
+    logger.debug("📦 Received payload", {
       prefix: "YouTube Webhook",
-      data: { size: `${rawBody.length} bytes` },
+      data: { rawBody },
     });
+
+    // if rawBody is like this:
+    /* {
+      "rawBody": "<?xml version='1.0' encoding='UTF-8'?>\n<feed xmlns:at=\"http://purl.org/atompub/tombstones/1.0\" xmlns=\"http://www.w3.org/2005/Atom\"><at:deleted-entry ref=\"yt:video:POOwHEPk3d4\" when=\"2025-02-14T14:39:49.240698+00:00\">\n  <link href=\"https://www.youtube.com/watch?v=POOwHEPk3d4\"/>\n  <at:by>\n   <name>Arda Basoglu</name>\n   <uri>https://www.youtube.com/channel/UCW5wxEjGHWNyatgZe-PU_tA</uri>\n  </at:by>\n </at:deleted-entry></feed>\n"
+    }
+    */
+
+    // detect deleted-entry
+    if (rawBody.includes("deleted-entry")) {
+      logger.info("🔴 Deleted entry detected", {
+        prefix: "YouTube Webhook",
+        data: { rawBody },
+      });
+      return new Response("OK", { status: 200 });
+    }
 
     // Parse XML content
     const parser = new xml2js.Parser();
