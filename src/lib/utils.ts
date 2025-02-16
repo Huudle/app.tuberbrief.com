@@ -11,15 +11,6 @@ export function getDefaultAvatar(user: {
   email: string;
   avatar_url?: string | null;
 }) {
-  logger.debug("🎭 Getting avatar for user", {
-    prefix: "Utils",
-    data: {
-      name: user.name,
-      email: user.email,
-      hasAvatarUrl: !!user.avatar_url,
-    },
-  });
-
   if (user.avatar_url) {
     logger.debug("✅ Using provided avatar_url", {
       prefix: "Utils",
@@ -33,10 +24,6 @@ export function getDefaultAvatar(user: {
   const uiAvatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
     name
   )}&background=random`;
-  logger.debug("🎨 Generated UI Avatar URL", {
-    prefix: "Utils",
-    data: { uiAvatarUrl },
-  });
   return uiAvatarUrl;
 }
 
