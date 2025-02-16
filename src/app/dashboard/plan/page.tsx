@@ -85,7 +85,7 @@ function formatPrice(amount: number) {
 }
 
 export default function PlanPage() {
-  const { profile, isLoading: profileLoading, refreshProfile } = useProfile();
+  const { profile, isLoading: profileLoading } = useProfile();
   const [plans, setPlans] = React.useState<Plan[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const { toast } = useToast();
@@ -115,7 +115,7 @@ export default function PlanPage() {
     fetchPlans();
   }, [toast]);
 
-  const handleUpdatePlan = async (planId: string) => {
+  const handleUpdatePlan = async () => {
     // Prevent plan changes temporarily
     toast({
       title: "Plan Changes Disabled",
@@ -187,7 +187,7 @@ export default function PlanPage() {
                 profile?.plan === plan.plan_name.toLowerCase() &&
                   "border-primary shadow-sm opacity-100"
               )}
-              onClick={() => handleUpdatePlan(plan.id)}
+              onClick={() => handleUpdatePlan()}
             >
               {profile?.plan === plan.plan_name.toLowerCase() && (
                 <div className="absolute right-4 top-4">
