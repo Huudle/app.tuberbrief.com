@@ -22,9 +22,9 @@ BEGIN
         WHERE
             pyc.youtube_channel_id = channel_id_param
             AND s.status = 'active'
-            AND CURRENT_DATE >= s.start_date
+            AND CURRENT_TIMESTAMP >= s.start_date
             AND(s.end_date IS NULL
-                OR CURRENT_DATE <= s.end_date))
+                OR CURRENT_TIMESTAMP <= s.end_date))
     SELECT
         sp.profile_id,
         sp.email,
