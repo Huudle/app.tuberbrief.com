@@ -15,7 +15,7 @@ BEGIN
             coalesce(s.usage_count, 0) AS usage_count,
             pl.monthly_email_limit AS monthly_limit
         FROM
-            profile_youtube_channels pyc
+            profiles_youtube_channels pyc
             JOIN profiles p ON pyc.profile_id = p.id
             JOIN subscriptions s ON p.id = s.profile_id
             JOIN plans pl ON s.plan_id = pl.id
