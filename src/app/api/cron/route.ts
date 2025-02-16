@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { QueueWorker } from "@/lib/queue-worker";
 import { EmailWorker } from "@/lib/email-worker";
-import { YouTubeSubscriptionWorker } from "@/lib/subscription-worker";
+import { YouTubeSubscriptionWorker } from "@/lib/youtube-subscription-worker";
 
 // Initialize workers
 const queueWorker = new QueueWorker();
