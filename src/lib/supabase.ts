@@ -57,7 +57,7 @@ export async function checkIfChannelIsLinked(
   channelId: string
 ): Promise<boolean> {
   const { error: checkError } = await supabaseAnon
-    .from("profile_youtube_channels")
+    .from("profiles_youtube_channels")
     .select("*")
     .eq("profile_id", profileId)
     .eq("youtube_channel_id", channelId)
@@ -88,7 +88,7 @@ export async function updateChannelSubscription(
   callbackUrl: string
 ) {
   await supabaseAnon
-    .from("profile_youtube_channels")
+    .from("profiles_youtube_channels")
     .update({ callback_url: callbackUrl })
     .eq("profile_id", profileId)
     .eq("youtube_channel_id", channelId);
@@ -149,7 +149,7 @@ export async function addYouTubeChannel(
         prefix: "Supabase",
       });
       const { data: linkData, error: linkError } = await supabaseAnon
-        .from("profile_youtube_channels")
+        .from("profiles_youtube_channels")
         .insert({
           profile_id: profileId,
           youtube_channel_id: channelData.id,
@@ -226,7 +226,7 @@ export async function getProfileChannels(
 ): Promise<ChannelListItem[]> {
   try {
     const { data, error } = await supabaseAnon
-      .from("profile_youtube_channels")
+      .from("profiles_youtube_channels")
       .select(
         `
         id,
@@ -298,7 +298,7 @@ export async function deleteProfileChannel(
 
   try {
     const { error } = await supabaseAnon
-      .from("profile_youtube_channels")
+      .from("profiles_youtube_channels")
       .delete()
       .eq("profile_id", profileId)
       .eq("id", channelId);
@@ -470,32 +470,49 @@ export async function storeCaptions(
 export async function getStoredAIContent(
   videoId: string
 ): Promise<VideoAIContent | null> {
-  const { data, error } = await supabaseServicePublic
-    .from("video_ai_content")
-    .select("*")
-    .eq("video_id", videoId)
-    .single();
+  try {
+    const { data, error } = await supabaseAnon
+      .from("video_ai_data")
+      .select("*")
+      .eq("video_id", videoId)
+      .single();
 
-  if (error || !data) return null;
-  return data;
+    if (error || !data) return null;
+    return data;
+  } catch (error) {
+    logger.error("❌ Error fetching AI content", {
+      prefix: "Supabase",
+      data: { error: error instanceof Error ? error.message : "Unknown error" },
+    });
+    return null;
+  }
 }
 
 export async function storeAIContent(
   videoId: string,
   aiContent: VideoAIContent
 ): Promise<void> {
-  const { error } = await supabaseServicePublic
-    .from("video_ai_content")
-    .upsert({
+  try {
+    const { error } = await supabaseAnon.from("video_ai_data").upsert({
       video_id: videoId,
       content: aiContent.content,
       model: aiContent.model,
     });
 
-  if (error) {
-    logger.error("❌ Failed to store AI content", {
+    if (error) {
+      logger.error("❌ Failed to store AI content", {
+        prefix: "Supabase",
+        data: { error: error.message, videoId },
+      });
+      throw error;
+    }
+  } catch (error) {
+    logger.error("💥 Error storing AI content", {
       prefix: "Supabase",
-      data: { error: error.message, videoId },
+      data: {
+        error: error instanceof Error ? error.message : "Unknown error",
+        videoId,
+      },
     });
     throw error;
   }
@@ -617,7 +634,7 @@ export async function checkAndRecordAlert(
 
     // Check if alert already sent in current period
     const { data: existingAlert } = await supabaseAnon
-      .from("notification_alerts")
+      .from("notification_alert_logs")
       .select("sent_at")
       .eq("profile_id", profileId)
       .eq("alert_type", type)
@@ -635,7 +652,7 @@ export async function checkAndRecordAlert(
 
     // Record new alert
     const { error: insertError } = await supabaseAnon
-      .from("notification_alerts")
+      .from("notification_alert_logs")
       .insert({
         profile_id: profileId,
         alert_type: type,
@@ -752,7 +769,7 @@ export async function checkAndAlertIneligibleProfiles(channelId: string) {
   try {
     // Get all subscribers for this channel
     const { data: allSubscribers } = await supabaseAnon
-      .from("profile_youtube_channels")
+      .from("profiles_youtube_channels")
       .select("profile_id")
       .eq("youtube_channel_id", channelId);
 
