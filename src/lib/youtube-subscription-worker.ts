@@ -57,7 +57,7 @@ export class YouTubeSubscriptionWorker {
       renewalDate.setDate(renewalDate.getDate() - SUBSCRIPTION_RENEWAL_DAYS);
 
       const { data: channels, error } = await this.supabase
-        .from("profile_youtube_channels")
+        .from("profiles_youtube_channels")
         .select("youtube_channel_id")
         .or(
           `subscribed_at.is.null,subscribed_at.lt.${renewalDate.toISOString()}`
@@ -95,7 +95,7 @@ export class YouTubeSubscriptionWorker {
 
           // Update subscription timestamp
           const { error: updateError } = await this.supabase
-            .from("profile_youtube_channels")
+            .from("profiles_youtube_channels")
             .update({
               subscribed_at: new Date().toISOString(),
               callback_url: callbackUrl,
