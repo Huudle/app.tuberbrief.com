@@ -9,7 +9,7 @@ export async function queueLimitAlert(
   monthlyLimit: number,
   type: AlertType = "limit_reached"
 ) {
-  logger.info("🔔 Attempting to queue limit alert", {
+  logger.info("🔔 Starting limit alert queue process", {
     prefix: "Notifications",
     data: {
       profileId,
@@ -37,6 +37,15 @@ export async function queueLimitAlert(
       monthlyLimit
     );
 
+    logger.info("📝 Queueing limit alert", {
+      prefix: "Notifications",
+      data: {
+        profileId,
+        type,
+        contentLength: emailContent.length,
+      },
+    });
+
     const { error: insertError } = await supabaseAnon
       .from("notification_limit_alerts")
       .insert({
@@ -51,13 +60,14 @@ export async function queueLimitAlert(
         prefix: "Notifications",
         data: {
           error: insertError,
+          code: insertError.code,
+          details: insertError.details,
+          hint: insertError.hint,
           profileId,
-          currentUsage,
-          monthlyLimit,
           type,
         },
       });
-      return;
+      throw insertError;
     }
 
     logger.info("✅ Limit alert queued successfully", {
@@ -70,7 +80,7 @@ export async function queueLimitAlert(
       },
     });
   } catch (error) {
-    logger.error("❌ Error queueing limit alert", {
+    logger.error("❌ Error in queueLimitAlert", {
       prefix: "Notifications",
       data: {
         error: error instanceof Error ? error.message : "Unknown error",
@@ -97,10 +107,11 @@ function generateLimitAlertEmail(
         <p>Please upgrade your plan to continue receiving notifications for all your channels.</p>
         <p>Thanks for using Flow Fusion!</p>
       `;
-    case "monthly_reset":
+    case "approaching_limit":
       return `
-        <p>Your monthly notification limit has been reset.</p>
-        <p>New usage: ${currentUsage}/${monthlyLimit}</p>
+        <p>You're approaching your monthly limit of ${monthlyLimit} notifications.</p>
+        <p>Current usage: ${currentUsage}/${monthlyLimit}</p>
+        <p>Consider upgrading your plan to ensure uninterrupted notifications.</p>
         <p>Thanks for using Flow Fusion!</p>
       `;
     default:
