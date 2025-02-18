@@ -253,7 +253,7 @@ export class QueueWorker {
             }
           : undefined,
         upgradeCTA: "Want more features? Upgrade your plan!",
-        showTranscript: false,
+        showTranscript: true,
         showUpgradeCTA: false,
       });
 

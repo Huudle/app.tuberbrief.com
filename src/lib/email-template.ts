@@ -23,10 +23,11 @@ export function generateEmailTemplate({
   captions,
   summary,
   upgradeCTA = "",
-  showTranscript = false,
+  showTranscript,
   showUpgradeCTA = false,
 }: EmailTemplateParams): string {
   const videoUrl = `https://youtube.com/watch?v=${videoId}`;
+  const transcriptUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/transcript/${videoId}`;
   const publishDate = new Date(publishedAt).toLocaleString();
 
   return `
@@ -78,6 +79,16 @@ export function generateEmailTemplate({
   <div style="margin: 35px 0; padding: 0;">
     <p style="margin: 0;">👉 Watch the video: <a href="${videoUrl}" style="color: #0066cc;">${videoUrl}</a></p>
   </div>
+
+  ${
+    showTranscript && captions?.transcript
+      ? `
+  <div style="margin: 35px 0; padding: 0;">
+    <p style="margin: 0;">View Transcript: <a href="${transcriptUrl}" style="color: #0066cc;">${transcriptUrl}</a></p>
+  </div>
+  `
+      : ""
+  }
 
   ${
     showUpgradeCTA && upgradeCTA
