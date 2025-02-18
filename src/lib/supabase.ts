@@ -530,10 +530,8 @@ export async function incrementSubscriptionUsage(
   profileId: string
 ): Promise<string> {
   try {
-    // Check for period reset first
     await checkAndHandleUsagePeriodReset(profileId);
 
-    // Get current subscription
     const { data: currentSub, error: fetchError } = await supabaseAnon
       .from("subscriptions")
       .select(
@@ -548,11 +546,6 @@ export async function incrementSubscriptionUsage(
       .eq("profile_id", profileId)
       .eq("status", "active")
       .single<CurrentSubscription>();
-
-    logger.info("🔍 Current subscription", {
-      prefix: "Supabase",
-      data: { currentSub },
-    });
 
     if (fetchError && fetchError.code !== "PGRST116") {
       logger.error("❌ Error fetching current subscription", {
@@ -574,9 +567,27 @@ export async function incrementSubscriptionUsage(
     const newCount = currentCount + 1;
     const monthlyLimit = currentSub.plans.monthly_email_limit;
 
-    // Check if this increment will hit the limit exactly
-    const willHitLimit =
-      currentCount < monthlyLimit && newCount >= monthlyLimit;
+    // Current calculation with detailed logging
+    const usagePercentage = (newCount / monthlyLimit) * 100;
+    const previousPercentage = Math.floor((currentCount / monthlyLimit) * 100);
+    const isApproaching80Percent =
+      usagePercentage >= 80 && previousPercentage < 80;
+
+    logger.info("🔢 Usage threshold check", {
+      prefix: "Supabase",
+      data: {
+        currentCount,
+        newCount,
+        monthlyLimit,
+        usagePercentage,
+        previousPercentage,
+        isApproaching80Percent,
+        calculations: {
+          newPercentage: `${newCount}/${monthlyLimit} * 100 = ${usagePercentage}`,
+          prevPercentage: `${currentCount}/${monthlyLimit} * 100 = ${previousPercentage}`,
+        },
+      },
+    });
 
     // Update usage count
     const { error: updateError } = await supabaseAnon
@@ -598,9 +609,18 @@ export async function incrementSubscriptionUsage(
 
     if (logError) throw logError;
 
-    // Only queue alert when first hitting the limit
+    // Queue alerts with correct types
+    const willHitLimit =
+      currentCount < monthlyLimit && newCount >= monthlyLimit;
     if (willHitLimit) {
-      await queueLimitAlert(profileId, newCount, monthlyLimit);
+      await queueLimitAlert(profileId, newCount, monthlyLimit, "limit_reached");
+    } else if (isApproaching80Percent) {
+      await queueLimitAlert(
+        profileId,
+        newCount,
+        monthlyLimit,
+        "approaching_limit"
+      );
     }
 
     logger.info("✅ Usage count incremented successfully", {
@@ -626,55 +646,77 @@ export async function checkAndRecordAlert(
   type: AlertType
 ): Promise<boolean> {
   try {
-    const now = new Date();
+    logger.info("🔍 Starting alert check", {
+      prefix: "Supabase",
+      data: { profileId, type },
+    });
 
-    // Check if alert already sent in current subscription period
-    const { data: subscription } = await supabaseAnon
-      .from("subscriptions")
-      .select("start_date, end_date")
-      .eq("profile_id", profileId)
-      .eq("status", "active")
-      .single();
-
-    if (!subscription) {
-      logger.warn("⚠️ No active subscription found for alert check", {
-        prefix: "Supabase",
-        data: { profileId, type },
-      });
-      return false;
-    }
-
-    // Check if alert already sent in current period
-    const { data: existingAlert } = await supabaseAnon
+    // Get most recent alert of this type from notification_alert_logs
+    const { data: recentAlert, error: fetchError } = await supabaseAnon
       .from("notification_alert_logs")
       .select("sent_at")
       .eq("profile_id", profileId)
       .eq("alert_type", type)
-      .gte("sent_at", subscription.start_date)
-      .lte("sent_at", subscription.end_date ?? now.toISOString())
+      .order("sent_at", { ascending: false })
+      .limit(1)
       .single();
 
-    if (existingAlert) {
-      logger.info("⏭️ Alert already sent in current period", {
+    if (fetchError && fetchError.code !== "PGRST116") {
+      // PGRST116 means no rows found
+      logger.error("❌ Error fetching recent alerts", {
         prefix: "Supabase",
-        data: { profileId, type, sentAt: existingAlert.sent_at },
+        data: { error: fetchError, profileId, type },
       });
       return false;
     }
 
-    // Record new alert
+    // If no recent alert, or last alert was more than 24 hours ago
+    const shouldSendAlert =
+      !recentAlert?.sent_at ||
+      new Date(recentAlert.sent_at).getTime() <
+        Date.now() - 24 * 60 * 60 * 1000;
+
+    logger.info("📊 Alert check result", {
+      prefix: "Supabase",
+      data: {
+        profileId,
+        type,
+        lastAlertAt: recentAlert?.sent_at,
+        shouldSendAlert,
+        timeSinceLastAlert: recentAlert?.sent_at
+          ? `${Math.round(
+              (Date.now() - new Date(recentAlert.sent_at).getTime()) /
+                (1000 * 60 * 60)
+            )} hours`
+          : "never",
+      },
+    });
+
+    // If we shouldn't send alert, return early
+    if (!shouldSendAlert) {
+      return false;
+    }
+
+    // Record new alert immediately to prevent race conditions
     const { error: insertError } = await supabaseAnon
       .from("notification_alert_logs")
       .insert({
         profile_id: profileId,
         alert_type: type,
-        sent_at: now.toISOString(),
+        sent_at: new Date().toISOString(),
       });
 
     if (insertError) {
       logger.error("❌ Failed to record alert", {
         prefix: "Supabase",
-        data: { error: insertError, profileId, type },
+        data: {
+          error: insertError,
+          code: insertError.code,
+          details: insertError.details,
+          hint: insertError.hint,
+          profileId,
+          type,
+        },
       });
       return false;
     }
@@ -686,7 +728,7 @@ export async function checkAndRecordAlert(
 
     return true;
   } catch (error) {
-    logger.error("💥 Error checking/recording alert", {
+    logger.error("❌ Error checking alerts", {
       prefix: "Supabase",
       data: {
         error: error instanceof Error ? error.message : "Unknown error",
