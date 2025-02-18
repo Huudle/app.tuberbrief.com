@@ -4,52 +4,42 @@ import { logger } from "@/lib/logger";
 import { incrementSubscriptionUsage } from "@/lib/supabase";
 import { handleSubscriptionAlert } from "@/lib/supabase";
 
-const POLLING_INTERVAL = 20000;
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export class EmailWorker {
   public isRunning: boolean = false;
   private supabasePublic = supabaseServicePublic;
+  private isProcessing = false;
+  private readonly POLLING_INTERVAL = 5000; // 5 seconds
 
   async start() {
-    this.isRunning = true;
-    logger.info("🎬 Starting email worker", { prefix: "Email Worker" });
+    logger.info("🚀 Starting email worker", {
+      prefix: "Email Worker",
+    });
 
-    while (this.isRunning) {
-      try {
-        await this.processNextBatch();
-        await new Promise((resolve) => setTimeout(resolve, POLLING_INTERVAL));
-      } catch (error) {
-        logger.error("💥 Email worker error:", {
-          prefix: "Email Worker",
-          data: {
-            error: error instanceof Error ? error.message : "Unknown error",
-          },
-        });
+    while (true) {
+      if (!this.isProcessing) {
+        try {
+          this.isProcessing = true;
+          await this.processEmails();
+        } catch (error) {
+          logger.error("❌ Error in email worker loop", {
+            prefix: "Email Worker",
+            data: { error },
+          });
+        } finally {
+          this.isProcessing = false;
+        }
       }
+      await new Promise((resolve) =>
+        setTimeout(resolve, this.POLLING_INTERVAL)
+      );
     }
   }
 
   stop() {
     this.isRunning = false;
     logger.info("🛑 Stopping email worker", { prefix: "Email Worker" });
-  }
-
-  private async processNextBatch() {
-    try {
-      // Process regular notifications
-      await this.processEmailNotifications();
-
-      // Process limit alerts
-      await this.processLimitAlerts();
-    } catch (error) {
-      logger.error("💥 Email worker error:", {
-        prefix: "Email Worker",
-        data: {
-          error: error instanceof Error ? error.message : "Unknown error",
-        },
-      });
-    }
   }
 
   private async processEmailNotifications() {
@@ -180,63 +170,28 @@ export class EmailWorker {
       return;
     }
 
-    logger.info(`📧 Processing ${alerts.length} limit alerts`, {
-      prefix: "Email Worker",
-      data: { batchSize: alerts.length },
-    });
-
     for (const alert of alerts) {
       try {
         const toEmail = alert.profiles.email;
         if (!toEmail) {
           logger.warn("⚠️ No email found for profile", {
             prefix: "Email Worker",
-            data: {
-              profileId: alert.profile_id,
-              alertId: alert.id,
-              alertType: alert.alert_type,
-            },
+            data: { profileId: alert.profile_id },
           });
           continue;
         }
 
-        logger.info("📤 Sending limit alert email", {
-          prefix: "Email Worker",
-          data: {
-            toEmail,
-            profileId: alert.profile_id,
-            currentUsage: alert.current_usage,
-            monthlyLimit: alert.monthly_limit,
-            usagePercentage: Math.round(
-              (alert.current_usage / alert.monthly_limit) * 100
-            ),
-          },
-        });
-
+        // Send email
         const emailSubject =
-          alert.alert_type === "approaching_limit"
-            ? "Approaching Monthly Notification Limit"
-            : "Monthly Notification Limit Reached";
-
-        const emailContent =
-          alert.alert_type === "approaching_limit"
-            ? `
-            <p>You're approaching your monthly notification limit (${alert.monthly_limit} notifications).</p>
-            <p>Current usage: ${alert.current_usage}/${alert.monthly_limit}</p>
-            <p>Consider upgrading your plan to ensure uninterrupted notifications.</p>
-          `
-            : `
-            <p>You've reached your monthly notification limit (${alert.monthly_limit} notifications).</p>
-            <p>Current usage: ${alert.current_usage}/${alert.monthly_limit}</p>
-            <p>Your limit will reset at the beginning of next month.</p>
-            <p>Consider upgrading your plan for more notifications.</p>
-          `;
+          alert.alert_type === "limit_reached"
+            ? "Monthly Notification Limit Reached"
+            : "Approaching Monthly Notification Limit";
 
         await resend.emails.send({
           from: "Flow Fusion Notifier <info@huudle.io>",
           to: toEmail,
           subject: emailSubject,
-          html: emailContent,
+          html: alert.email_content,
         });
 
         // Update alert status
@@ -251,25 +206,21 @@ export class EmailWorker {
         if (updateError) {
           logger.error("❌ Failed to update alert status", {
             prefix: "Email Worker",
-            data: {
-              error: updateError,
-              alertId: alert.id,
-              profileId: alert.profile_id,
-            },
+            data: { error: updateError, alertId: alert.id },
           });
-          continue;
         }
 
-        logger.info("✅ Limit alert sent successfully", {
+        logger.info("✅ Alert processed successfully", {
           prefix: "Email Worker",
           data: {
-            toEmail,
             alertId: alert.id,
             profileId: alert.profile_id,
+            type: alert.alert_type,
+            toEmail,
           },
         });
       } catch (error) {
-        logger.error("❌ Failed to process limit alert", {
+        logger.error("❌ Failed to process alert", {
           prefix: "Email Worker",
           data: {
             error: error instanceof Error ? error.message : "Unknown error",
@@ -289,62 +240,23 @@ export class EmailWorker {
 
   async processEmails() {
     try {
+      logger.info("🔄 Starting email processing cycle", {
+        prefix: "Email Worker",
+      });
+
       // Process regular email notifications
       await this.processEmailNotifications();
       // Process limit alert notifications
-      await this.processLimitAlertNotifications();
+      await this.processLimitAlerts();
+
+      logger.info("✅ Completed email processing cycle", {
+        prefix: "Email Worker",
+      });
     } catch (error) {
       logger.error("❌ Error processing emails", {
         prefix: "EmailWorker",
         data: { error },
       });
-    }
-  }
-
-  private async processLimitAlertNotifications() {
-    const { data: notifications, error: fetchError } = await this.supabasePublic
-      .from("notification_limit_alerts")
-      .select("*, profiles(email)")
-      .eq("status", "pending")
-      .limit(10);
-
-    if (fetchError) throw fetchError;
-    if (!notifications?.length) return;
-
-    for (const notification of notifications) {
-      try {
-        await resend.emails.send({
-          from: "Flow Fusion Notifier <info@huudle.io>",
-          to: notification.profiles.email,
-          subject: `Notification Limit Alert - ${notification.alert_type}`,
-          html: notification.email_content,
-        });
-
-        await this.supabasePublic
-          .from("notification_limit_alerts")
-          .update({
-            status: "sent",
-            sent_at: new Date().toISOString(),
-          })
-          .eq("id", notification.id);
-
-        logger.info("✅ Limit alert email sent", {
-          prefix: "EmailWorker",
-          data: { notificationId: notification.id },
-        });
-      } catch (error) {
-        await this.supabasePublic
-          .from("notification_limit_alerts")
-          .update({
-            status: "failed",
-          })
-          .eq("id", notification.id);
-
-        logger.error("❌ Error sending limit alert email", {
-          prefix: "EmailWorker",
-          data: { error, notificationId: notification.id },
-        });
-      }
     }
   }
 }
