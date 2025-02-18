@@ -217,4 +217,4 @@ export enum PlanName {
   Pro = "Pro",
 }
 
-export type AlertType = "limit_reached" | "monthly_reset" | "approaching_limit";
+export type AlertType = "limit_reached" | "approaching_limit";
