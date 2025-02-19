@@ -20,14 +20,9 @@ export function CopyButton({ text }: CopyButtonProps) {
   };
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={copy}
-      className="gap-2"
-    >
+    <Button variant="outline" size="sm" onClick={copy} className="gap-2">
       <Copy className="h-4 w-4" />
       Copy transcript
     </Button>
   );
-} 
+}
