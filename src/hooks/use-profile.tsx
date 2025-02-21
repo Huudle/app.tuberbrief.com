@@ -4,33 +4,8 @@ import * as React from "react";
 import { supabaseAnon } from "@/lib/supabase";
 import { getDefaultAvatar } from "@/lib/utils";
 import { logger } from "@/lib/logger";
-import { UserPlan } from "@/lib/constants";
-
-interface Plan {
-  id: string;
-  plan_name: UserPlan;
-  monthly_email_limit: number;
-  monthly_cost: number;
-  channel_limit: number;
-  features: Record<string, unknown>;
-}
-
-interface Subscription {
-  id: string;
-  profile_id: string;
-  plan: Plan;
-  // Add other subscription fields if needed
-}
-
-interface Profile {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  email: string | null;
-  avatar_url: string | null;
-  plan: UserPlan; // Keep for backward compatibility
-  subscription: Subscription | null;
-}
+import { useState, useEffect } from "react";
+import { Profile } from "@/lib/types";
 
 interface ProfileContext {
   profile: Profile | null;
@@ -85,13 +60,19 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const { data: profile, error } = await supabaseAnon
+      const { data: profileWithSubscription, error } = await supabaseAnon
         .from("profiles")
         .select(
           `
           *,
-          subscription:subscriptions(
-            plan:plans(*)
+          subscriptions!inner(
+            plan_id,
+            status,
+            plans!inner(
+              plan_name,
+              monthly_email_limit,
+              channel_limit
+            )
           )
         `
         )
@@ -100,19 +81,26 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
       logger.info("Profile data", {
         prefix: "ProfileProvider",
-        data: profile,
+        data: profileWithSubscription,
       });
 
       if (error) throw error;
 
       const profileData = {
-        ...profile,
+        ...profileWithSubscription,
         email: user.email,
         avatar_url:
-          profile.avatar_url || getDefaultAvatar({ email: profile.email }),
-        plan:
-          (profile.subscription?.plan.plan_name.toLowerCase() as UserPlan) ||
-          "free",
+          profileWithSubscription.avatar_url ||
+          getDefaultAvatar({ email: profileWithSubscription.email }),
+        subscription: {
+          status: profileWithSubscription.subscriptions.status,
+          plans: profileWithSubscription.subscriptions.plans,
+          limits: {
+            channels: profileWithSubscription.subscriptions.plans.channel_limit,
+            monthlyEmails:
+              profileWithSubscription.subscriptions.plans.monthly_email_limit,
+          },
+        },
       };
 
       setProfile(profileData);
@@ -160,9 +148,66 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useProfile() {
-  const context = React.useContext(ProfileContext);
-  if (context === undefined) {
-    throw new Error("useProfile must be used within a ProfileProvider");
-  }
-  return context;
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabaseAnon.auth.getUser();
+        if (userError || !user) throw userError;
+
+        const { data: profileWithSubscription, error: profileError } =
+          await supabaseAnon
+            .from("profiles")
+            .select(
+              `
+            *,
+            subscriptions!inner(
+              plan_id,
+              status,
+              plans!inner(
+                plan_name,
+                monthly_email_limit,
+                channel_limit
+              )
+            )
+          `
+            )
+            .eq("id", user.id)
+            .single();
+
+        if (profileError) throw profileError;
+
+        setProfile({
+          ...profileWithSubscription,
+          email: user.email,
+          avatar_url:
+            profileWithSubscription.avatar_url ||
+            getDefaultAvatar({ email: profileWithSubscription.email }),
+          subscription: {
+            status: profileWithSubscription.subscriptions.status,
+            plans: profileWithSubscription.subscriptions.plans,
+            limits: {
+              channels:
+                profileWithSubscription.subscriptions.plans.channel_limit,
+              monthlyEmails:
+                profileWithSubscription.subscriptions.plans.monthly_email_limit,
+            },
+          },
+        });
+      } catch (error) {
+        console.error("Error loading profile:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadProfile();
+  }, []);
+
+  return { profile, isLoading, refreshProfile: () => {} };
 }
