@@ -23,7 +23,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { PLAN_LIMITS } from "@/lib/constants";
 import { useProfile } from "@/hooks/use-profile";
 import { managePubSubHubbub } from "@/lib/pubsub";
 import { logger } from "@/lib/logger";
@@ -213,6 +212,9 @@ export default function ChannelsPage() {
     );
   }
 
+  const channelLimit = profile?.subscription?.limits?.channels || 0;
+  const currentChannels = channels.length || 0;
+
   return (
     <AppLayout
       breadcrumbs={[{ label: "YouTube Channels", href: "/dashboard" }]}
@@ -222,8 +224,8 @@ export default function ChannelsPage() {
           <h1 className="text-2xl font-bold">YouTube Channels</h1>
           <div className="flex gap-2 mt-1">
             <UsageBadge
-              currentCount={channels.length}
-              maxCount={PLAN_LIMITS[profile.plan]}
+              currentCount={currentChannels}
+              maxCount={channelLimit}
               label="channels"
             />
             {!isLoadingUsage && usage && (
@@ -234,7 +236,7 @@ export default function ChannelsPage() {
             )}
           </div>
         </div>
-        {channels.length < PLAN_LIMITS[profile.plan] && (
+        {channelLimit > 0 && currentChannels >= channelLimit && (
           <Link href="/dashboard/channels/new">
             <Button>
               <Youtube className="mr-2 h-4 w-4" />
