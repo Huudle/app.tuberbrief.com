@@ -149,3 +149,16 @@ export function buildUrl(path: string): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return `${baseUrl}${normalizedPath}`;
 }
+
+export function internalFetch(input: string, init?: RequestInit) {
+  const baseUrl = getAppUrl();
+  const url = input.startsWith("/") ? `${baseUrl}${input}` : input;
+  
+  return fetch(url, {
+    ...init,
+    headers: {
+      ...init?.headers,
+      "Content-Type": "application/json",
+    },
+  });
+}
