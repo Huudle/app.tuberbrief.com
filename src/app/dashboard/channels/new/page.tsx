@@ -15,7 +15,6 @@ import {
   removeYouTubeChannel,
   updateChannelSubscription,
 } from "@/lib/supabase";
-import { PLAN_LIMITS } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/use-profile";
 import { ChannelFromXmlFeed } from "@/lib/types";
@@ -45,26 +44,11 @@ export default function AddChannelPage() {
   const [currentChannels, setCurrentChannels] = useState<number | null>(null);
   const router = useRouter();
 
-  // Check channel limit before allowing new channel creation
-  const channelLimit = profile?.subscription?.plan.channel_limit ?? 0;
-  logger.info("Channel limit", {
-    prefix: "Channels",
-    data: { channelLimit },
-  });
+  // Update channel limit check
+  const channelLimit = profile?.subscription?.plans.channel_limit ?? 0;
   const currentChannelCount = currentChannels ?? 0;
-  logger.info("Current channel count", {
-    prefix: "Channels",
-    data: { currentChannelCount },
-  });
-  const hasReachedLimit = currentChannelCount >= channelLimit;
-  logger.info("Has reached limit", {
-    prefix: "Channels",
-    data: { hasReachedLimit },
-  });
-  if (hasReachedLimit) {
-    // Show upgrade message
-  }
 
+  // Move useEffect before any conditional logic
   useEffect(() => {
     async function loadChannels() {
       if (!profile) return;
@@ -86,6 +70,32 @@ export default function AddChannelPage() {
       loadChannels();
     }
   }, [profile, isLoadingProfile]);
+
+  // Logging after the hook
+  logger.info("Channel limit", {
+    prefix: "Channels",
+    data: { channelLimit },
+  });
+
+  logger.info("Current channel count", {
+    prefix: "Channels",
+    data: { currentChannelCount },
+  });
+
+  // Update plan limit check
+  const hasReachedLimit =
+    currentChannelCount != null &&
+    currentChannelCount >= (profile?.subscription?.plans.channel_limit ?? 0);
+
+  if (hasReachedLimit) {
+    setError(
+      `You've reached the limit of ${
+        profile?.subscription?.plans.channel_limit ?? 0
+      } channels for your ${
+        profile?.subscription?.plans.plan_name.toLowerCase() ?? "free"
+      } plan. Please upgrade to add more channels.`
+    );
+  }
 
   // Show loading state while we're loading either profile or channel count
   if (isLoadingProfile || currentChannels === null) {
@@ -145,17 +155,17 @@ export default function AddChannelPage() {
       return;
     }
 
-    // 3. Plan limits check (existing)
+    // 3. Plan limits check
     const hasReachedLimit =
       currentChannelCount != null &&
-      currentChannelCount >= PLAN_LIMITS[profile.plan];
+      currentChannelCount >= (profile.subscription?.plans.channel_limit ?? 0);
 
     if (hasReachedLimit) {
       setError(
         `You've reached the limit of ${
-          PLAN_LIMITS[profile.plan]
+          profile.subscription?.plans.channel_limit ?? 0
         } channels for your ${
-          profile.plan
+          profile.subscription?.plans.plan_name.toLowerCase() ?? "free"
         } plan. Please upgrade to add more channels.`
       );
       return;
@@ -401,8 +411,10 @@ export default function AddChannelPage() {
             </CardTitle>
             <p className="text-sm text-muted-foreground">
               You are using {currentChannels} of{" "}
-              {PLAN_LIMITS[profile?.plan || "free"]} channels available on your{" "}
-              {profile?.plan || "free"} plan.
+              {profile?.subscription?.plans.channel_limit || 0} channels
+              available on your{" "}
+              {profile?.subscription?.plans.plan_name.toLowerCase() || "free"}{" "}
+              plan.
             </p>
           </CardHeader>
           <CardContent>
@@ -410,8 +422,11 @@ export default function AddChannelPage() {
               <div className="py-6">
                 <p className="text-muted-foreground mb-4">
                   You&apos;ve reached the limit of{" "}
-                  {PLAN_LIMITS[profile?.plan || "free"]} channels for your{" "}
-                  {profile?.plan || "free"} plan.
+                  {profile?.subscription?.plans.channel_limit || 0} channels for
+                  your{" "}
+                  {profile?.subscription?.plans.plan_name.toLowerCase() ||
+                    "free"}{" "}
+                  plan.
                 </p>
                 <Button asChild>
                   <a href="/dashboard/settings/plan">Upgrade Plan</a>
