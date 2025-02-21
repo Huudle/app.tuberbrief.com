@@ -20,9 +20,9 @@ export function Logo() {
           className="h-full w-auto dark:invert"
         />
       </Link>
-      {!isLoading && profile?.plan && (
+      {!isLoading && profile?.subscription?.plans.plan_name && (
         <Badge variant="default" className="capitalize text-xs px-2 py-0">
-          {profile.plan}
+          {profile.subscription.plans.plan_name}
         </Badge>
       )}
     </div>
