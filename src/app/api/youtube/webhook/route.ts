@@ -1,17 +1,7 @@
 import xml2js from "xml2js";
 import { PubSubHubbubNotification } from "@/lib/types";
-import { buildUrl } from "@/lib/utils";
 import { logger } from "@/lib/logger";
-
-// Helper function to make internal API calls
-async function internalFetch(path: string, options: RequestInit) {
-  const url = buildUrl(path);
-  logger.info("🔗 Internal API call to", {
-    prefix: "YouTube Webhook",
-    data: { url },
-  });
-  return fetch(url, options);
-}
+import { internalFetch } from "@/lib/utils";
 
 export async function GET(request: Request) {
   logger.info("🔔 Received hub verification request", {
