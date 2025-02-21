@@ -206,9 +206,77 @@ export interface Subscription {
   usage_count: number;
   start_date: string;
   end_date: string | null;
+  stripe_subscription_id: string;
+  stripe_customer_id: string;
   plans: {
+    plan_name: string;
     monthly_email_limit: number;
+    channel_limit: number;
+    stripe_price_id: string;
   };
+  limits?: {
+    channels: number;
+    monthlyEmails: number;
+  };
+}
+
+interface PlanFeatures {
+  plan: {
+    name: string;
+    description: string;
+    highlight: string;
+  };
+  limits: {
+    channels: number;
+    notifications: number;
+    description: string;
+  };
+  transcription: {
+    enabled: boolean;
+    description: string;
+    tooltip: string;
+    disabled_message?: string;
+  };
+  ai_summary: {
+    enabled: boolean;
+    description: string;
+    tooltip: string;
+    disabled_message?: string;
+  };
+  instant_notification: {
+    enabled: boolean;
+    description: string;
+    tooltip: string;
+    disabled_message?: string;
+  };
+  webhooks: {
+    enabled: boolean;
+    description: string;
+    tooltip: string;
+    disabled_message?: string;
+  };
+  priority_support: {
+    enabled: boolean;
+    description: string;
+    tooltip: string;
+    disabled_message?: string;
+  };
+  notifications: {
+    type: string;
+    description: string;
+    tooltip: string;
+    upgrade_message?: string;
+  };
+}
+
+export interface Plan {
+  id: string;
+  plan_name: string;
+  monthly_email_limit: number;
+  monthly_cost: number;
+  channel_limit: number;
+  features: PlanFeatures;
+  stripe_price_id: string;
 }
 
 export enum PlanName {
@@ -218,3 +286,20 @@ export enum PlanName {
 }
 
 export type AlertType = "limit_reached" | "approaching_limit";
+
+export interface Profile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  avatar_url: string | null;
+  subscription: Subscription | null;
+}
+
+export interface UpdatePlanResponse {
+  success: boolean;
+  error?: string;
+  requiresPaymentMethod?: boolean;
+  clientSecret?: string;
+  subscriptionId?: string;
+}
