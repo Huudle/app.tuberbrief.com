@@ -1,7 +1,7 @@
 import { supabaseAnon } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
 import { checkAndRecordAlert } from "@/lib/supabase";
-import { AlertType } from "@/lib/types";
+import { AlertType, Plan, Profile } from "@/lib/types";
 
 export async function queueLimitAlert(
   profileId: string,
@@ -116,5 +116,70 @@ function generateLimitAlertEmail(
       `;
     default:
       return "";
+  }
+}
+
+export async function sendPlanChangeEmail(
+  profileId: string,
+  oldPlan: string,
+  newPlan: string
+) {
+  try {
+    const { data: profile } = await supabaseAnon
+      .from("profiles")
+      .select("email, first_name")
+      .eq("id", profileId)
+      .single<Profile>();
+
+    if (!profile) {
+      logger.error("❌ Profile not found", {
+        prefix: "Notifications",
+        data: { profileId },
+      });
+      return;
+    }
+
+    const { data: planDetails } = await supabaseAnon
+      .from("plans")
+      .select("*")
+      .eq("plan_name", newPlan)
+      .single<Plan>();
+
+    if (!planDetails) {
+      logger.error("❌ Plan details not found", {
+        prefix: "Notifications",
+        data: { profileId, newPlan },
+      });
+      return;
+    }
+
+    const emailContent = `
+      <p>Hi ${profile.first_name || "there"},</p>
+      <p>Your Flow Fusion plan has been updated from ${oldPlan} to ${newPlan}.</p>
+      <p>New Plan Limits:</p>
+      <ul>
+        <li>Monthly Email Limit: ${planDetails.monthly_email_limit}</li>
+        <li>Channel Limit: ${planDetails.channel_limit}</li>
+      </ul>
+      <p>Thanks for using Flow Fusion!</p>
+    `;
+
+    await supabaseAnon.from("notification_plan_change_emails").insert({
+      profile_id: profileId,
+      email_content: emailContent,
+      old_plan: oldPlan,
+      new_plan: newPlan,
+      status: "pending",
+    });
+
+    logger.info("✉️ Plan change email queued", {
+      prefix: "Notifications",
+      data: { profileId, oldPlan, newPlan },
+    });
+  } catch (error) {
+    logger.error("Failed to queue plan change email", {
+      prefix: "Notifications",
+      data: { error, profileId },
+    });
   }
 }
