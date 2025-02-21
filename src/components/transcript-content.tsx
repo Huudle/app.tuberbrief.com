@@ -35,7 +35,10 @@ export function TranscriptContent({
   }
 
   // If profile is a free plan, show a message telling they need to upgrade
-  if (!profile || profile.plan === "free") {
+  if (
+    !profile ||
+    profile.subscription?.plans.plan_name.toLowerCase() === "free"
+  ) {
     return (
       <div className="w-full max-w-5xl space-y-6">
         <Card className="border-2 border-primary/20">
