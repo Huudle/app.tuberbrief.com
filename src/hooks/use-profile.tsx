@@ -66,12 +66,20 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
           `
           *,
           subscriptions!inner(
+            id,
             plan_id,
             status,
+            usage_count,
+            start_date,
+            end_date,
+            stripe_customer_id,
+            stripe_subscription_id,
             plans!inner(
+              id,
               plan_name,
               monthly_email_limit,
-              channel_limit
+              channel_limit,
+              monthly_cost
             )
           )
         `
@@ -92,15 +100,28 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         avatar_url:
           profileWithSubscription.avatar_url ||
           getDefaultAvatar({ email: profileWithSubscription.email }),
-        subscription: {
-          status: profileWithSubscription.subscriptions.status,
-          plans: profileWithSubscription.subscriptions.plans,
-          limits: {
-            channels: profileWithSubscription.subscriptions.plans.channel_limit,
-            monthlyEmails:
-              profileWithSubscription.subscriptions.plans.monthly_email_limit,
-          },
-        },
+        subscription: profileWithSubscription.subscriptions
+          ? {
+              id: profileWithSubscription.subscriptions.id,
+              plan_id: profileWithSubscription.subscriptions.plan_id,
+              status: profileWithSubscription.subscriptions.status,
+              usage_count: profileWithSubscription.subscriptions.usage_count,
+              start_date: profileWithSubscription.subscriptions.start_date,
+              end_date: profileWithSubscription.subscriptions.end_date,
+              plans: profileWithSubscription.subscriptions.plans,
+              limits: {
+                channels:
+                  profileWithSubscription.subscriptions.plans.channel_limit,
+                monthlyEmails:
+                  profileWithSubscription.subscriptions.plans
+                    .monthly_email_limit,
+              },
+              stripe_customer_id:
+                profileWithSubscription.subscriptions.stripe_customer_id,
+              stripe_subscription_id:
+                profileWithSubscription.subscriptions.stripe_subscription_id,
+            }
+          : null,
       };
 
       setProfile(profileData);
@@ -167,12 +188,20 @@ export function useProfile() {
               `
             *,
             subscriptions!inner(
+              id,
               plan_id,
               status,
+              usage_count,
+              start_date,
+              end_date,
+              stripe_customer_id,
+              stripe_subscription_id,
               plans!inner(
+                id,
                 plan_name,
                 monthly_email_limit,
-                channel_limit
+                channel_limit,
+                monthly_cost
               )
             )
           `
@@ -188,16 +217,28 @@ export function useProfile() {
           avatar_url:
             profileWithSubscription.avatar_url ||
             getDefaultAvatar({ email: profileWithSubscription.email }),
-          subscription: {
-            status: profileWithSubscription.subscriptions.status,
-            plans: profileWithSubscription.subscriptions.plans,
-            limits: {
-              channels:
-                profileWithSubscription.subscriptions.plans.channel_limit,
-              monthlyEmails:
-                profileWithSubscription.subscriptions.plans.monthly_email_limit,
-            },
-          },
+          subscription: profileWithSubscription.subscriptions
+            ? {
+                id: profileWithSubscription.subscriptions.id,
+                plan_id: profileWithSubscription.subscriptions.plan_id,
+                status: profileWithSubscription.subscriptions.status,
+                usage_count: profileWithSubscription.subscriptions.usage_count,
+                start_date: profileWithSubscription.subscriptions.start_date,
+                end_date: profileWithSubscription.subscriptions.end_date,
+                plans: profileWithSubscription.subscriptions.plans,
+                limits: {
+                  channels:
+                    profileWithSubscription.subscriptions.plans.channel_limit,
+                  monthlyEmails:
+                    profileWithSubscription.subscriptions.plans
+                      .monthly_email_limit,
+                },
+                stripe_customer_id:
+                  profileWithSubscription.subscriptions.stripe_customer_id,
+                stripe_subscription_id:
+                  profileWithSubscription.subscriptions.stripe_subscription_id,
+              }
+            : null,
         });
       } catch (error) {
         console.error("Error loading profile:", error);
