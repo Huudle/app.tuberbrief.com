@@ -196,7 +196,15 @@ export interface EligibleProfile {
   monthly_limit: number;
 }
 
-export type SubscriptionStatus = "active" | "expired" | "cancelled";
+export type SubscriptionStatus =
+  | "active"
+  | "expired"
+  | "canceled"
+  | "incomplete"
+  | "incomplete_expired"
+  | "past_due"
+  | "trialing"
+  | "unpaid";
 
 export interface Subscription {
   id: string;
@@ -213,6 +221,7 @@ export interface Subscription {
     monthly_email_limit: number;
     channel_limit: number;
     stripe_price_id: string;
+    monthly_cost: number;
   };
   limits?: {
     channels: number;
