@@ -236,7 +236,7 @@ export default function ChannelsPage() {
             )}
           </div>
         </div>
-        {channelLimit > 0 && currentChannels >= channelLimit && (
+        {channelLimit > 0 && currentChannels < channelLimit && (
           <Link href="/dashboard/channels/new">
             <Button>
               <Youtube className="mr-2 h-4 w-4" />
