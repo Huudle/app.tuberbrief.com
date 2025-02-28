@@ -125,9 +125,12 @@ create table public.subscriptions (
       status = any (
         array[
           'active'::text,
-          'cancelled'::text,
-          'expired'::text,
-          'suspended'::text
+          'incomplete'::text,
+          'incomplete_expired'::text,
+          'past_due'::text,
+          'canceled'::text,
+          'unpaid'::text,
+          'trialing'::text
         ]
       )
     )
