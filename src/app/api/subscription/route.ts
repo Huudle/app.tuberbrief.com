@@ -146,7 +146,7 @@ export async function POST(req: Request) {
       // Get user email for new customer
       const { data: profile } = await supabaseAnon
         .from("profiles")
-        .select("email")
+        .select("id, email")
         .eq("id", userId)
         .single();
 
@@ -176,8 +176,7 @@ export async function POST(req: Request) {
       const customer = await stripe.customers.create({
         email: profile.email,
         metadata: {
-          user_id: userId,
-          system_id: "flow-fusion", // Add system identifier
+          profile_id: profile.id,
           created_at: new Date().toISOString(),
         },
       });
