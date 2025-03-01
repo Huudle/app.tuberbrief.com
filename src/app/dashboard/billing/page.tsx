@@ -1,7 +1,12 @@
 "use client";
 
-import * as React from "react";
-import { Receipt, CreditCard, FileText, Calendar } from "lucide-react";
+import {
+  Receipt,
+  CreditCard,
+  FileText,
+  Calendar,
+  AlertTriangle,
+} from "lucide-react";
 import { AppLayout } from "@/components/ui/app-layout";
 import {
   Card,
@@ -34,6 +39,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { getProfileChannels } from "@/lib/supabase";
+import React, { useEffect } from "react";
 
 interface PaginationState {
   total: number;
@@ -71,6 +86,8 @@ export default function BillingPage() {
   const [invoices, setInvoices] = React.useState<InvoiceResponse[]>([]);
   const [invoiceError, setInvoiceError] = React.useState<string | null>(null);
   const [isRedirecting, setIsRedirecting] = React.useState(false);
+  const [showChangePlanDialog, setShowChangePlanDialog] = React.useState(false);
+  const [showCancelDialog, setShowCancelDialog] = React.useState(false);
   const [pagination, setPagination] = React.useState<PaginationState>({
     total: 0,
     page: 1,
@@ -78,6 +95,26 @@ export default function BillingPage() {
     totalPages: 0,
     hasMore: false,
   });
+  const [actualChannelCount, setActualChannelCount] = React.useState<
+    number | null
+  >(null);
+
+  useEffect(() => {
+    async function loadChannelCount() {
+      if (!profile?.id) return;
+
+      try {
+        // Get profile channels using the same function used in the channels page
+        const channels = await getProfileChannels(profile.id);
+        setActualChannelCount(channels.length);
+      } catch (error) {
+        console.error("Error loading channel count:", error);
+        setActualChannelCount(0);
+      }
+    }
+
+    loadChannelCount();
+  }, [profile?.id]);
 
   // Format date helper function
   const formatDate = (dateString: string | number) => {
@@ -120,11 +157,17 @@ export default function BillingPage() {
   function getChannelCount(profile: ProfileWithUsage): number {
     // Try various possible locations for the channel count
     return (
-      profile?.channels_count ||
-      profile?.metadata?.channels_count ||
-      profile?.usage?.channels ||
-      0
+      profile?.channel_count || // Try direct count property
+      (profile?.subscription?.plans?.channel_limit
+        ? getChannelUsageCount(profile.id)
+        : 0) // Calculate based on channels in database
     );
+  }
+
+  // Function to safely access actual channel count
+  function getChannelUsageCount(profileId?: string): number {
+    if (!profileId) return 0;
+    return actualChannelCount ?? 0;
   }
 
   function getMonthlyUsageCount(profile: ProfileWithUsage): number {
@@ -226,6 +269,7 @@ export default function BillingPage() {
   const handleChangePlan = async () => {
     try {
       setIsRedirecting(true);
+      setShowChangePlanDialog(false);
 
       // Make request with proper credentials and plan change parameter
       const response = await fetch(
@@ -260,6 +304,51 @@ export default function BillingPage() {
       console.error("Error opening Stripe plan selection portal:", error);
       alert(
         "Unable to open plan selection portal: " +
+          (error instanceof Error ? error.message : "Please try again later")
+      );
+      setIsRedirecting(false);
+    }
+  };
+
+  // Function to handle subscription cancellation via Stripe Portal
+  const handleCancelSubscription = async () => {
+    try {
+      setIsRedirecting(true);
+      setShowCancelDialog(false);
+
+      // Make request with proper credentials and cancellation parameter
+      const response = await fetch(
+        "/api/billing/create-portal-session?action=cancel",
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          credentials: "include", // Include cookies for auth
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Portal session error:", errorData);
+        throw new Error(
+          errorData.error || "Failed to open cancellation portal"
+        );
+      }
+
+      const data = await response.json();
+
+      if (!data.url) {
+        console.error("No portal URL returned:", data);
+        throw new Error("Invalid response from cancellation portal");
+      }
+
+      // Open in the same window
+      window.location.href = data.url;
+    } catch (error) {
+      console.error("Error opening Stripe cancellation portal:", error);
+      alert(
+        "Unable to open cancellation portal: " +
           (error instanceof Error ? error.message : "Please try again later")
       );
       setIsRedirecting(false);
@@ -695,15 +784,20 @@ export default function BillingPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
-              <div className="flex justify-between w-full">
+              <div className="flex justify-between w-full gap-2">
                 <Button
                   variant="outline"
-                  onClick={handleChangePlan}
+                  onClick={() => setShowChangePlanDialog(true)}
                   disabled={isRedirecting}
                 >
-                  {isRedirecting && window.location.href.includes("plan=change")
-                    ? "Redirecting..."
-                    : "Change Plan"}
+                  {isRedirecting ? (
+                    <span className="flex items-center gap-2">
+                      <span className="h-4 w-4 inline-block border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                      Processing...
+                    </span>
+                  ) : (
+                    "Change Plan"
+                  )}
                 </Button>
 
                 {profile.subscription?.stripe_subscription_id && (
@@ -713,11 +807,33 @@ export default function BillingPage() {
                     disabled={isRedirecting}
                   >
                     {isRedirecting &&
-                    !window.location.href.includes("plan=change")
+                    !window.location.href.includes("plan=change") &&
+                    !window.location.href.includes("action=cancel")
                       ? "Redirecting..."
                       : "Manage Payment Methods"}
                   </Button>
                 )}
+
+                {profile.subscription?.stripe_subscription_id &&
+                  profile.subscription?.status === "active" &&
+                  profile.subscription?.plans?.plan_name?.toLowerCase() !==
+                    "free" && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCancelDialog(true)}
+                      disabled={isRedirecting}
+                      className="text-red-500 hover:bg-red-50 hover:text-red-600"
+                    >
+                      {isRedirecting ? (
+                        <span className="flex items-center gap-2">
+                          <span className="h-4 w-4 inline-block border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                          Processing...
+                        </span>
+                      ) : (
+                        "Cancel Plan"
+                      )}
+                    </Button>
+                  )}
               </div>
 
               <p className="text-xs text-muted-foreground">
@@ -745,20 +861,26 @@ export default function BillingPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Channels Used</span>
                     <span className="text-sm text-muted-foreground">
-                      {getChannelCount(profile)} of{" "}
-                      {profile.subscription?.plans?.channel_limit || 1}
+                      {actualChannelCount !== null
+                        ? actualChannelCount
+                        : getChannelCount(profile)}{" "}
+                      of {profile.subscription?.plans?.channel_limit || 1}
                     </span>
                   </div>
                   <div className="relative">
                     <Progress
                       value={calculatePercentage(
-                        getChannelCount(profile),
+                        actualChannelCount !== null
+                          ? actualChannelCount
+                          : getChannelCount(profile),
                         profile.subscription?.plans?.channel_limit || 1
                       )}
                       className="h-2"
                       indicatorClassName={getUsageColor(
                         calculatePercentage(
-                          getChannelCount(profile),
+                          actualChannelCount !== null
+                            ? actualChannelCount
+                            : getChannelCount(profile),
                           profile.subscription?.plans?.channel_limit || 1
                         )
                       )}
@@ -766,7 +888,9 @@ export default function BillingPage() {
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {calculatePercentage(
-                      getChannelCount(profile),
+                      actualChannelCount !== null
+                        ? actualChannelCount
+                        : getChannelCount(profile),
                       profile.subscription?.plans?.channel_limit || 1
                     ) >= 90
                       ? "You're approaching your channel limit. Consider upgrading your plan for more channels."
@@ -1070,6 +1194,86 @@ export default function BillingPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Plan Change Dialog */}
+        <Dialog
+          open={showChangePlanDialog}
+          onOpenChange={setShowChangePlanDialog}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Change Subscription Plan</DialogTitle>
+              <DialogDescription>
+                You&apos;ll be redirected to the Stripe Customer Portal to
+                select a new plan. Your billing information will be updated
+                automatically.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowChangePlanDialog(false)}
+                disabled={isRedirecting}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleChangePlan} disabled={isRedirecting}>
+                {isRedirecting ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 inline-block border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                    Processing...
+                  </span>
+                ) : (
+                  "Continue to Stripe"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Cancellation Dialog */}
+        <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                Cancel Subscription
+              </DialogTitle>
+              <DialogDescription>
+                Are you sure you want to cancel your subscription? You&apos;ll
+                still have access until the end of your current billing period
+                on{" "}
+                {profile.subscription?.end_date
+                  ? new Date(profile.subscription.end_date).toLocaleDateString()
+                  : "your next billing date"}
+                .
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setShowCancelDialog(false)}
+                disabled={isRedirecting}
+              >
+                Keep Subscription
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleCancelSubscription}
+                disabled={isRedirecting}
+              >
+                {isRedirecting ? (
+                  <span className="flex items-center gap-2">
+                    <span className="h-4 w-4 inline-block border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                    Processing...
+                  </span>
+                ) : (
+                  "Confirm Cancellation"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </AppLayout>
   );
