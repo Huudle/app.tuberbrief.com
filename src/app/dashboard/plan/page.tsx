@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabaseAnon } from "@/lib/supabase";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/use-profile";
 import { Plan } from "@/lib/types";
 
@@ -121,8 +120,8 @@ export default function PlanPage() {
   if (isLoading || profileLoading) {
     return (
       <AppLayout breadcrumbs={breadcrumbs}>
-        <div className="container py-8">
-          <Skeleton className="h-48" />
+        <div className="h-screen flex items-center justify-center">
+        <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
         </div>
       </AppLayout>
     );

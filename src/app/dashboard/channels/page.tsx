@@ -178,18 +178,8 @@ export default function ChannelsPage() {
       <AppLayout
         breadcrumbs={[{ label: "YouTube Channels", href: "/dashboard" }]}
       >
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">YouTube Channels</h1>
-            <Skeleton className="h-5 w-48 mt-1" />
-          </div>
-          <Skeleton className="h-10 w-32" />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <ChannelSkeleton key={i} />
-          ))}
+        <div className="h-screen flex items-center justify-center">
+        <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
         </div>
       </AppLayout>
     );

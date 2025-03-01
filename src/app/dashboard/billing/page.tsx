@@ -539,15 +539,8 @@ export default function BillingPage() {
   if (isLoading || profileLoading) {
     return (
       <AppLayout breadcrumbs={[{ label: "Billing", active: true }]}>
-        <div className="space-y-6">
-          <h1 className="text-3xl font-bold">Billing</h1>
-
-          <Skeleton className="h-[200px] w-full" />
-
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-48" />
-            <Skeleton className="h-[300px] w-full" />
-          </div>
+        <div className="h-screen flex items-center justify-center">
+          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
         </div>
       </AppLayout>
     );

@@ -101,38 +101,8 @@ export default function ProfilePage() {
           { label: "Profile", active: true },
         ]}
       >
-        <div className="w-full max-w-5xl space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold">Profile Settings</h1>
-            <p className="text-sm text-muted-foreground">
-              Manage your personal information
-            </p>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Skeleton className="h-5 w-12" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-5 w-20" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-5 w-20" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-                <div className="flex justify-end">
-                  <Skeleton className="h-10 w-28" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="h-screen flex items-center justify-center">
+        <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
         </div>
       </AppLayout>
     );

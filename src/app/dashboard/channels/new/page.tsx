@@ -15,7 +15,6 @@ import {
   removeYouTubeChannel,
   updateChannelSubscription,
 } from "@/lib/supabase";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/use-profile";
 import { ChannelFromXmlFeed } from "@/lib/types";
 import { managePubSubHubbub } from "@/lib/pubsub";
@@ -106,34 +105,8 @@ export default function AddChannelPage() {
           { label: "Add Channel", active: true },
         ]}
       >
-        <div className="w-full md:w-[600px]">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold flex items-center gap-2">
-                <Youtube className="h-6 w-6" />
-                Add YouTube Channel
-              </CardTitle>
-              <Skeleton className="h-5 w-72 mt-1" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-10 w-full" />
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-24" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-4 w-40" />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-4">
-                  <Skeleton className="h-10 w-24" />
-                  <Skeleton className="h-10 w-32" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="h-screen flex items-center justify-center">
+        <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
         </div>
       </AppLayout>
     );
