@@ -179,7 +179,7 @@ export default function ChannelsPage() {
         breadcrumbs={[{ label: "YouTube Channels", href: "/dashboard" }]}
       >
         <div className="h-screen flex items-center justify-center">
-        <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
         </div>
       </AppLayout>
     );
