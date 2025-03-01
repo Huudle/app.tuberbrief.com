@@ -156,45 +156,100 @@ export async function GET(request: Request) {
       data: {
         customerId,
         returnUrl: `${baseUrl}/dashboard/billing`,
+        action: request.url.includes("plan=change")
+          ? "change_plan"
+          : request.url.includes("action=cancel")
+          ? "cancel"
+          : "general",
       },
     });
 
-    // Create Stripe customer portal session with subscription management enabled
-    const portalSession = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: `${baseUrl}/dashboard/billing`,
-      ...(process.env.STRIPE_PORTAL_CONFIGURATION_ID
-        ? {
-            configuration: process.env.STRIPE_PORTAL_CONFIGURATION_ID,
-          }
-        : {}),
-      ...(request.url.includes("plan=change")
-        ? {
-            flow_data: {
-              type: "subscription_update",
-              subscription_update: {
-                subscription: await getCustomerSubscriptionId(customerId),
-              },
-            },
-          }
-        : {}),
-    });
+    // Determine which flow to show based on URL parameters
+    const urlParams = new URL(request.url).searchParams;
+    const action = urlParams.get("action");
+    const planChange = urlParams.get("plan") === "change";
+    const priceId = urlParams.get("priceId");
 
-    // Helper function to get customer's subscription ID
-    async function getCustomerSubscriptionId(
-      customerId: string
-    ): Promise<string> {
+    // Get the subscription ID for this customer
+    let subscriptionId: string | undefined;
+    try {
       const customer = (await stripe.customers.retrieve(customerId, {
         expand: ["subscriptions"],
       })) as Stripe.Customer;
 
-      const subscriptionId = customer.subscriptions?.data[0]?.id;
-      if (!subscriptionId) {
-        throw new Error("No active subscription found for customer");
-      }
+      subscriptionId = customer.subscriptions?.data[0]?.id;
 
-      return subscriptionId;
+      if (!subscriptionId) {
+        logger.warn("No active subscription found for customer", {
+          prefix: "API/billing/create-portal-session",
+          data: { customerId },
+        });
+      } else {
+        logger.debug("Found subscription for customer", {
+          prefix: "API/billing/create-portal-session",
+          data: { customerId, subscriptionId },
+        });
+      }
+    } catch (error) {
+      logger.error("Error retrieving customer subscriptions", {
+        prefix: "API/billing/create-portal-session",
+        data: {
+          error: error instanceof Error ? error.message : "Unknown error",
+          customerId,
+        },
+      });
     }
+
+    // Set up portal configuration options
+    const portalOptions: Stripe.BillingPortal.SessionCreateParams = {
+      customer: customerId,
+      return_url: `${baseUrl}/dashboard/billing`,
+    };
+
+    // Add configuration ID if available
+    if (process.env.STRIPE_PORTAL_CONFIGURATION_ID) {
+      portalOptions.configuration = process.env.STRIPE_PORTAL_CONFIGURATION_ID;
+    }
+
+    // Set up specific flows based on action
+    if (planChange && subscriptionId) {
+      portalOptions.flow_data = {
+        type: "subscription_update",
+        subscription_update: {
+          subscription: subscriptionId,
+        },
+      };
+
+      // If a specific price ID is provided, log that we received it
+      // Unfortunately, the Stripe Portal API doesn't directly support pre-selecting prices
+      // in the subscription_update flow as of this API version
+      if (priceId) {
+        logger.debug("Received priceId parameter for subscription update", {
+          prefix: "API/billing/create-portal-session",
+          data: {
+            subscriptionId,
+            priceId,
+            note: "The Stripe Portal API doesn't currently support pre-selecting prices in the subscription_update flow",
+          },
+        });
+
+        // We will redirect to the portal, but the user will still need to select the plan manually
+        // A future enhancement could include adding custom parameters to the return URL
+        // so the frontend could display which plan the user originally selected
+      }
+    } else if (action === "cancel" && subscriptionId) {
+      portalOptions.flow_data = {
+        type: "subscription_cancel",
+        subscription_cancel: {
+          subscription: subscriptionId,
+        },
+      };
+    }
+
+    // Create Stripe customer portal session with enhanced options
+    const portalSession = await stripe.billingPortal.sessions.create(
+      portalOptions
+    );
 
     // Redirect to the portal URL
     return NextResponse.json({ url: portalSession.url });
