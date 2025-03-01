@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, Clock, CalendarIcon } from "lucide-react";
-import { logger } from "@/lib/logger";
+import { Check, Clock } from "lucide-react";
 import { AppLayout } from "@/components/ui/app-layout";
 import {
   Card,
@@ -25,22 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabaseAnon } from "@/lib/supabase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/use-profile";
-import { loadStripe } from "@stripe/stripe-js";
 import { Plan } from "@/lib/types";
-
-// Interface for pending plan information
-interface PendingPlanInfo {
-  id?: string;
-  profile_id: string;
-  next_plan_id: string;
-  stripe_price_id: string | null;
-  start_date: string;
-  plans: {
-    plan_name: string;
-    monthly_email_limit: number;
-    channel_limit: number;
-  };
-}
 
 function formatPrice(amount: number) {
   return new Intl.NumberFormat("en-US", {
@@ -50,66 +34,17 @@ function formatPrice(amount: number) {
   }).format(amount);
 }
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!
-);
-
 export default function PlanPage() {
   const { profile, isLoading: profileLoading } = useProfile();
   const [plans, setPlans] = React.useState<Plan[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [pendingPlan, setPendingPlan] = React.useState<Plan | null>(null);
   const [isProcessing, setIsProcessing] = React.useState(false);
-  const [pendingPlanInfo, setPendingPlanInfo] =
-    React.useState<PendingPlanInfo | null>(null);
   const { toast } = useToast();
 
   const breadcrumbs = [{ label: "Plans", active: true }];
 
-  // Format date helper function
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }).format(date);
-  };
-
-  // Fetch pending plan information if there's a subscription
-  React.useEffect(() => {
-    async function fetchPendingPlan() {
-      if (!profile?.id) return;
-
-      try {
-        const { data, error } = await supabaseAnon
-          .from("pending_plans")
-          .select(
-            `
-            *,
-            plans:next_plan_id (
-              plan_name,
-              monthly_email_limit,
-              channel_limit
-            )
-          `
-          )
-          .eq("profile_id", profile.id)
-          .maybeSingle();
-
-        if (error) throw error;
-
-        if (data) {
-          setPendingPlanInfo(data);
-        }
-      } catch (error) {
-        console.error("Error fetching pending plan:", error);
-      }
-    }
-
-    fetchPendingPlan();
-  }, [profile?.id]);
-
+  // Fetch plans from the database
   React.useEffect(() => {
     async function fetchPlans() {
       try {
@@ -135,114 +70,51 @@ export default function PlanPage() {
     fetchPlans();
   }, [toast]);
 
-  const handleUpdatePlan = async (newPlanId: string) => {
+  // Function to redirect to Stripe portal for plan changes
+  const redirectToStripePortal = async (selectedPlan?: Plan | null) => {
     try {
       setIsProcessing(true);
-      const selectedPlan = plans.find((plan) => plan.id === newPlanId);
-      if (!selectedPlan) return;
 
-      const currentPlan = profile?.subscription?.plans;
-
-      // Check if this is the free plan
-      if (selectedPlan.plan_name === "Free") {
-        // Call the cancellation endpoint instead
-        const response = await fetch("/api/subscription/cancel", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            profileId: profile?.id,
-            targetPlanId: selectedPlan.id,
-          }),
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || "Failed to cancel subscription");
-        }
-
-        // Refresh the profile to show updated plan
-        // You may need to add a method to refresh profile data
-        toast({
-          title: "Plan Updated",
-          description: "You have been switched to the Free plan",
-          variant: "default",
-        });
-
-        // Reload the page to reflect changes
-        window.location.reload();
-        return;
+      // Build the URL with the selected plan if provided
+      let portalUrl = "/api/billing/create-portal-session?plan=change";
+      if (selectedPlan && selectedPlan.stripe_price_id) {
+        portalUrl += `&priceId=${selectedPlan.stripe_price_id}`;
       }
-      // Check if this is a downgrade to a lower-tier paid plan
-      else if (
-        currentPlan &&
-        currentPlan.monthly_cost > selectedPlan.monthly_cost &&
-        selectedPlan.monthly_cost > 0 &&
-        profile?.subscription?.stripe_subscription_id
-      ) {
-        // This is a downgrade to a lower paid plan - use delayed switch
-        const response = await fetch("/api/subscription/switch", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            profileId: profile?.id,
-            currentSubId: profile.subscription.stripe_subscription_id,
-            newPlanId: selectedPlan.id,
-          }),
-        });
 
-        const result = await response.json();
+      // Make request with proper credentials and plan change parameter
+      const response = await fetch(portalUrl, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Include cookies for auth
+      });
 
-        if (!response.ok) {
-          throw new Error(result.error || "Failed to schedule plan switch");
-        }
-
-        toast({
-          title: "Plan Change Scheduled",
-          description: `You will be switched to the ${
-            selectedPlan.plan_name
-          } plan at the end of your current billing period (${new Date(
-            result.endDate
-          ).toLocaleDateString()})`,
-          variant: "default",
-        });
-
-        // Reload to show pending change
-        window.location.reload();
-        return;
-      } else {
-        // For paid plan upgrades, continue with checkout process
-        const response = await fetch("/api/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            priceId: selectedPlan.stripe_price_id,
-            profile: profile,
-          }),
-        });
-
-        const result = await response.json();
-
-        if (!response.ok) {
-          throw new Error(result.error || "Failed to create checkout session");
-        }
-
-        const stripe = await stripePromise;
-        await stripe?.redirectToCheckout({ sessionId: result.sessionId });
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Portal session error:", errorData);
+        throw new Error(
+          errorData.error || "Failed to open plan selection portal"
+        );
       }
+
+      const data = await response.json();
+
+      if (!data.url) {
+        console.error("No portal URL returned:", data);
+        throw new Error("Invalid response from plan selection portal");
+      }
+
+      // Open in the same window
+      window.location.href = data.url;
     } catch (error) {
+      console.error("Error opening Stripe plan selection portal:", error);
       toast({
         title: "Error",
-        description: "Failed to update plan. Please try again.",
+        description: "Failed to open plan selection portal. Please try again.",
         variant: "destructive",
       });
-      logger.error("Error updating plan", {
-        prefix: "PlanPage",
-        data: { error, profileId: profile?.id, newPlanId },
-      });
-    } finally {
       setIsProcessing(false);
-      setPendingPlan(null);
     }
   };
 
@@ -260,211 +132,65 @@ export default function PlanPage() {
     <AppLayout breadcrumbs={breadcrumbs}>
       <div className="container py-8">
         <div className="w-full max-w-5xl space-y-6">
-          <div>
+          <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold">Plans</h1>
+            {isProcessing && (
+              <div className="flex items-center gap-2 text-primary">
+                <span className="h-5 w-5 inline-block border-2 border-current border-t-transparent rounded-full animate-spin"></span>
+                <span>Processing...</span>
+              </div>
+            )}
           </div>
 
-          {/* Subscription Status Information */}
-          {profile?.subscription && (
-            <Card className="bg-muted/40">
-              <CardContent className="pt-6">
-                <div className="flex flex-col space-y-2">
-                  <h3 className="font-medium flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4" />
-                    Subscription Status
-                  </h3>
-
-                  <div className="text-sm">
-                    {profile.subscription.plans.plan_name === "Free" ? (
-                      <p>You are currently on the Free plan.</p>
-                    ) : (
-                      <>
-                        <p>
-                          Your{" "}
-                          <span className="font-semibold">
-                            {profile.subscription.plans.plan_name}
-                          </span>{" "}
-                          plan is{" "}
-                          <span className="font-medium">
-                            {profile.subscription.status.toLowerCase()}
-                          </span>
-                          .
-                        </p>
-
-                        {profile.subscription.start_date && (
-                          <p className="mt-1">
-                            Started on{" "}
-                            <span className="font-medium">
-                              {formatDate(profile.subscription.start_date)}
-                            </span>
-                          </p>
-                        )}
-
-                        {profile.subscription.end_date && (
-                          <p className="mt-1">
-                            {profile.subscription.status === "canceled" ? (
-                              <>
-                                Your subscription will end on{" "}
-                                <span className="font-medium text-amber-600">
-                                  {formatDate(profile.subscription.end_date)}
-                                </span>
-                              </>
-                            ) : (
-                              <>
-                                Next billing date:{" "}
-                                <span className="font-medium">
-                                  {formatDate(profile.subscription.end_date)}
-                                </span>
-                              </>
-                            )}
-                          </p>
-                        )}
-                      </>
-                    )}
-
-                    {/* Display pending plan change if applicable */}
-                    {pendingPlanInfo && (
-                      <div className="mt-3 p-2 border border-amber-200 bg-amber-50 rounded-md">
-                        <p className="text-amber-700 flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          <span className="font-medium">
-                            Plan Change Scheduled:
-                          </span>{" "}
-                          Switching to{" "}
-                          <span className="font-medium">
-                            {pendingPlanInfo.plans.plan_name}
-                          </span>{" "}
-                          on{" "}
-                          <span className="font-medium">
-                            {formatDate(pendingPlanInfo.start_date)}
-                          </span>
-                        </p>
-                        {pendingPlanInfo.plans.plan_name === "Free" ? (
-                          <p className="mt-1 text-xs text-amber-600 pl-5">
-                            You&apos;ll have access to your current plan until
-                            the end of the billing period.
-                          </p>
-                        ) : (
-                          <p className="mt-1 text-xs text-amber-600 pl-5">
-                            Your new plan will be active starting on this date.
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Display usage information */}
-                  <div className="mt-3 pt-2 border-t text-sm">
-                    <p>
-                      <span className="font-medium">
-                        {profile.subscription.usage_count || 0}
-                      </span>{" "}
-                      of{" "}
-                      <span className="font-medium">
-                        {profile.subscription.plans.monthly_email_limit}
-                      </span>{" "}
-                      notifications used this month
-                    </p>
-                  </div>
+          {/* Instructions card - Clearer instructions */}
+          <Card className="bg-muted/30 border-dashed">
+            <CardContent className="pt-6">
+              <div className="flex gap-2 items-center">
+                <div className="bg-primary/10 p-2 rounded-full flex-shrink-0">
+                  <Check className="h-4 w-4 text-primary" />
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Show different heading text based on pending plan status */}
-          <div className="flex items-center justify-between">
-            <p className="text-sm">
-              {pendingPlanInfo ? (
-                <span className="text-amber-700 flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  You have a scheduled plan change. Other plans are unavailable
-                  at this time.
-                </span>
-              ) : (
-                <span className="text-muted-foreground">
-                  Choose the plan that best fits your needs
-                </span>
-              )}
-            </p>
-          </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Click on a plan card to view plan details and be redirected
+                    to Stripe&apos;s secure payment portal, where you can
+                    complete your subscription change. Your current plan remains
+                    active until you finalize the change in Stripe.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="grid gap-6 lg:grid-cols-3">
             {plans.map((plan) => (
               <Card
                 key={plan.id}
                 className={cn(
-                  "relative transition-all hover:shadow-md",
-                  pendingPlanInfo
-                    ? pendingPlanInfo.plans.plan_name.toLowerCase() ===
-                      plan.plan_name.toLowerCase()
-                      ? "border-amber-400 shadow-sm opacity-100"
-                      : "opacity-50 cursor-not-allowed"
-                    : (profile?.subscription?.plans.plan_name.toLowerCase() ===
-                        plan.plan_name.toLowerCase() ||
-                        pendingPlan?.id === plan.id) &&
-                        "border-primary shadow-sm opacity-100"
+                  "relative transition-all hover:shadow-md flex flex-col",
+                  profile?.subscription?.plans.plan_name.toLowerCase() ===
+                    plan.plan_name.toLowerCase() || pendingPlan?.id === plan.id
+                    ? "border-primary shadow-sm opacity-100"
+                    : "cursor-pointer hover:border-primary/50 hover:scale-[1.01] transition-transform",
+                  isProcessing && "pointer-events-none opacity-70"
                 )}
                 onClick={() => {
-                  // Disable clicks if there's a pending plan change
-                  if (pendingPlanInfo) {
-                    if (
-                      pendingPlanInfo.plans.plan_name.toLowerCase() !==
-                      plan.plan_name.toLowerCase()
-                    ) {
-                      toast({
-                        title: "Plan change already scheduled",
-                        description: `You already have a scheduled change to the ${pendingPlanInfo.plans.plan_name} plan. Please wait for this change to complete or contact support to modify it.`,
-                        variant: "default",
-                      });
-                    }
-                    return;
-                  }
+                  // Prevent additional clicks while processing
+                  if (isProcessing) return;
 
+                  // If this isn't the current plan, open confirmation dialog
                   if (
                     profile?.subscription?.plans.plan_name.toLowerCase() !==
                     plan.plan_name.toLowerCase()
                   ) {
+                    // Show the confirmation dialog
                     setPendingPlan(plan);
                   }
                 }}
               >
-                {profile?.subscription?.plans.plan_name.toLowerCase() ===
-                  plan.plan_name.toLowerCase() &&
-                  !pendingPlanInfo && (
-                    <div className="absolute right-4 top-4">
-                      <Check className="h-6 w-6 text-primary" />
-                    </div>
-                  )}
-                {/* Show pending badge for the plan that's scheduled */}
-                {pendingPlanInfo &&
-                  pendingPlanInfo.plans.plan_name.toLowerCase() ===
-                    plan.plan_name.toLowerCase() && (
-                    <div className="absolute right-4 top-4">
-                      <Clock className="h-6 w-6 text-amber-500" />
-                      <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md">
-                        Scheduled
-                      </span>
-                    </div>
-                  )}
-                {/* Show pending badge when selecting a new plan */}
-                {pendingPlan?.id === plan.id && !pendingPlanInfo && (
-                  <div className="absolute right-4 top-4">
-                    <Clock className="h-6 w-6 text-amber-500" />
-                    <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md">
-                      Pending
-                    </span>
-                  </div>
-                )}
                 <CardHeader>
                   <CardTitle className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       {plan.features.plan.name}
-                      {profile?.subscription?.plans.plan_name.toLowerCase() ===
-                        plan.plan_name.toLowerCase() && (
-                        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md">
-                          Current plan
-                        </span>
-                      )}
                     </div>
                   </CardTitle>
                   <CardDescription className="flex flex-col gap-1">
@@ -481,7 +207,7 @@ export default function PlanPage() {
                     </span>
                   </CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="pb-16">
                   <div className="space-y-4">
                     <div className="text-2xl font-bold">
                       {plan.monthly_email_limit} notifications
@@ -532,6 +258,35 @@ export default function PlanPage() {
                     </ul>
                   </div>
                 </CardContent>
+
+                {/* Best Value Badge for Pro Plan */}
+                {plan.plan_name.toLowerCase() === "pro" && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-emerald-500 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-sm">
+                    Best Value
+                  </div>
+                )}
+
+                {profile?.subscription?.plans.plan_name.toLowerCase() ===
+                  plan.plan_name.toLowerCase() && (
+                  <div className="absolute right-4 top-4">
+                    <div className="flex items-center gap-1">
+                      <Check className="h-5 w-5 text-primary" />
+                      <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-md">
+                        Current Plan
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Show pending badge when selecting a new plan */}
+                {pendingPlan?.id === plan.id && (
+                  <div className="absolute right-4 top-4">
+                    <Clock className="h-6 w-6 text-amber-500" />
+                    <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md">
+                      Pending
+                    </span>
+                  </div>
+                )}
               </Card>
             ))}
           </div>
@@ -539,39 +294,64 @@ export default function PlanPage() {
       </div>
 
       <Dialog
-        open={!!pendingPlan}
+        open={pendingPlan !== null}
         onOpenChange={(open) => !open && setPendingPlan(null)}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change Plan</DialogTitle>
+            <DialogTitle>Confirm Plan Change</DialogTitle>
             <DialogDescription>
               {pendingPlan && (
                 <>
-                  Are you sure you want to switch to the{" "}
-                  {pendingPlan.features.plan.name} plan?
-                  {pendingPlan.monthly_cost > 0 && (
-                    <>
-                      {" "}
-                      You will be charged{" "}
-                      {formatPrice(pendingPlan.monthly_cost)}/month.
-                    </>
-                  )}
+                  You&apos;re about to switch to the{" "}
+                  <strong>{pendingPlan.features.plan.name}</strong> plan (
+                  {formatPrice(pendingPlan.monthly_cost)}
+                  {pendingPlan.monthly_cost > 0 ? "/month" : ""}).
                 </>
               )}
             </DialogDescription>
+            {pendingPlan && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium mb-2">Plan features:</h4>
+                <ul className="text-sm space-y-1 list-disc pl-4">
+                  <li>
+                    {pendingPlan.monthly_email_limit} notifications per month
+                  </li>
+                  <li>Monitor up to {pendingPlan.channel_limit} channels</li>
+                </ul>
+
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium">
+                    How plan changes work:
+                  </h4>
+                  <ol className="text-sm mt-2 list-decimal pl-4 space-y-1">
+                    <li>Click &quot;Continue to Stripe&quot; below</li>
+                    <li>
+                      In Stripe&apos;s secure portal, review and confirm the
+                      plan change
+                    </li>
+                    <li>
+                      Your subscription will be updated immediately after
+                      completing the process in Stripe
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            )}
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
               onClick={() => setPendingPlan(null)}
               disabled={isProcessing}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button
-              onClick={() => pendingPlan && handleUpdatePlan(pendingPlan.id)}
+              onClick={() => redirectToStripePortal(pendingPlan)}
               disabled={isProcessing}
+              className="w-full sm:w-auto"
             >
               {isProcessing ? (
                 <span className="flex items-center gap-2">
@@ -579,7 +359,7 @@ export default function PlanPage() {
                   Processing...
                 </span>
               ) : (
-                "Confirm Change"
+                "Continue to Stripe"
               )}
             </Button>
           </DialogFooter>
