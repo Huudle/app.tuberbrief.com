@@ -27,7 +27,7 @@ export default function AppearancePage() {
         <div>
           <h1 className="text-2xl font-bold">Appearance Settings</h1>
           <p className="text-sm text-muted-foreground">
-            Customize how Flow Fusion looks on your device
+            Customize how TuberBrief looks on your device
           </p>
         </div>
 

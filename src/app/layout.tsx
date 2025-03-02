@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ProfileProvider } from "@/hooks/use-profile";
 
 export const metadata: Metadata = {
-  title: "Flow Fusion - YouTube Channel Monitoring & Summarization",
+  title: "TuberBrief - YouTube Channel Monitoring & Summarization",
   description:
     "Monitor YouTube channels, get AI-powered video summaries, and receive insights directly in your inbox.",
   keywords: [

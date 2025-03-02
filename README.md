@@ -1,4 +1,4 @@
-# FLOW FUSION
+# TuberBrief
 
 ## YouTube Channel Monitoring & Summarization Service
 

@@ -1,4 +1,4 @@
-# TubeBrief Pricing Plans
+# TuberBrief Pricing Plans
 
 ## Free Tier
 

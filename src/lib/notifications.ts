@@ -105,14 +105,14 @@ function generateLimitAlertEmail(
         <p>You have reached your monthly limit of ${monthlyLimit} notifications.</p>
         <p>Current usage: ${currentUsage}/${monthlyLimit}</p>
         <p>Please upgrade your plan to continue receiving notifications for all your channels.</p>
-        <p>Thanks for using Flow Fusion!</p>
+        <p>Thanks for using TuberBrief!</p>
       `;
     case "approaching_limit":
       return `
         <p>You're approaching your monthly limit of ${monthlyLimit} notifications.</p>
         <p>Current usage: ${currentUsage}/${monthlyLimit}</p>
         <p>Consider upgrading your plan to ensure uninterrupted notifications.</p>
-        <p>Thanks for using Flow Fusion!</p>
+        <p>Thanks for using TuberBrief!</p>
       `;
     default:
       return "";
@@ -155,13 +155,13 @@ export async function sendPlanChangeEmail(
 
     const emailContent = `
       <p>Hi ${profile.first_name || "there"},</p>
-      <p>Your Flow Fusion plan has been updated from ${oldPlan} to ${newPlan}.</p>
+      <p>Your TuberBrief plan has been updated from ${oldPlan} to ${newPlan}.</p>
       <p>New Plan Limits:</p>
       <ul>
         <li>Monthly Email Limit: ${planDetails.monthly_email_limit}</li>
         <li>Channel Limit: ${planDetails.channel_limit}</li>
       </ul>
-      <p>Thanks for using Flow Fusion!</p>
+      <p>Thanks for using TuberBrief!</p>
     `;
 
     await supabaseAnon.from("notification_plan_change_emails").insert({

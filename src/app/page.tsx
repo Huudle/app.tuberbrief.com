@@ -8,7 +8,7 @@ export default function Home() {
           <div className="flex justify-center mb-8">
             <Image
               src="/logo-001.png"
-              alt="Flow Fusion Logo"
+              alt="TuberBrief Logo"
               width={512}
               height={512}
               priority
@@ -39,7 +39,7 @@ export default function Home() {
       </main>
 
       <footer className="row-start-3 text-center text-sm text-gray-500 dark:text-gray-400">
-        © {new Date().getFullYear()} Flow Fusion. All rights reserved.
+        © {new Date().getFullYear()} TuberBrief. All rights reserved.
       </footer>
     </div>
   );

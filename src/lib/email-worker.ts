@@ -87,7 +87,7 @@ export class EmailWorker {
         );
 
         await resend.emails.send({
-          from: "Flow Fusion Notifier <info@huudle.io>",
+          from: "TuberBrief Notifier <info@huudle.io>",
           to: toEmail,
           subject: `New Video: ${notification.video_captions.title}`,
           html: notification.email_content,
@@ -188,7 +188,7 @@ export class EmailWorker {
             : "Approaching Monthly Notification Limit";
 
         await resend.emails.send({
-          from: "Flow Fusion Notifier <info@huudle.io>",
+          from: "TuberBrief Notifier <info@huudle.io>",
           to: toEmail,
           subject: emailSubject,
           html: alert.email_content,

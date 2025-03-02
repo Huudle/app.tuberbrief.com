@@ -101,7 +101,7 @@ function LoginForm() {
           <CardHeader>
             <CardTitle>Welcome back</CardTitle>
             <CardDescription>
-              Sign in to your Flow Fusion account to continue
+              Sign in to your TuberBrief account to continue
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

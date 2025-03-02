@@ -110,7 +110,7 @@ export default function SignUpPage() {
           <CardHeader>
             <CardTitle>Create an account</CardTitle>
             <CardDescription>
-              Get started with Flow Fusion by creating your account below.
+              Get started with TuberBrief by creating your account below.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
