@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
-import { Skeleton } from "@/components/ui/skeleton";
 
 import { AppLayout } from "@/components/ui/app-layout";
 import { Button } from "@/components/ui/button";

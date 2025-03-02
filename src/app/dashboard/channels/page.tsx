@@ -22,7 +22,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useProfile } from "@/hooks/use-profile";
 import { managePubSubHubbub } from "@/lib/pubsub";
 import { logger } from "@/lib/logger";
@@ -49,6 +48,14 @@ export default function ChannelsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const handler = () => window.location.reload();
+      window.addEventListener("visibilitychange", handler);
+      return () => window.removeEventListener("visibilitychange", handler);
+    }
+  }, []);
 
   useEffect(() => {
     async function loadChannels() {
@@ -149,28 +156,6 @@ export default function ChannelsPage() {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );
-
-  const ChannelSkeleton = () => (
-    <Card className="flex flex-col rounded-[5px]">
-      <CardHeader className="flex flex-col space-y-4 p-4">
-        <Skeleton className="w-full aspect-video rounded-[5px]" />
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <Skeleton className="h-4 w-32" />
-            </div>
-            <Skeleton className="h-8 w-8" />
-          </div>
-          <div className="grid gap-[2px]">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-36" />
-            <Skeleton className="h-4 w-28" />
-          </div>
-        </div>
-      </CardHeader>
-    </Card>
   );
 
   if (isLoadingProfile || isLoading) {
