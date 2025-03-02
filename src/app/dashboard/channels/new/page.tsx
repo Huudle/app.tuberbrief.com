@@ -86,15 +86,17 @@ export default function AddChannelPage() {
     currentChannelCount != null &&
     currentChannelCount >= (profile?.subscription?.plans.channel_limit ?? 0);
 
-  if (hasReachedLimit) {
-    setError(
-      `You've reached the limit of ${
-        profile?.subscription?.plans.channel_limit ?? 0
-      } channels for your ${
-        profile?.subscription?.plans.plan_name.toLowerCase() ?? "free"
-      } plan. Please upgrade to add more channels.`
-    );
-  }
+  useEffect(() => {
+    if (hasReachedLimit) {
+      setError(
+        `You've reached the limit of ${
+          profile?.subscription?.plans.channel_limit ?? 0
+        } channels for your ${
+          profile?.subscription?.plans.plan_name.toLowerCase() ?? "free"
+        } plan. Please upgrade to add more channels.`
+      );
+    }
+  }, [hasReachedLimit, profile]);
 
   // Show loading state while we're loading either profile or channel count
   if (isLoadingProfile || currentChannels === null) {
