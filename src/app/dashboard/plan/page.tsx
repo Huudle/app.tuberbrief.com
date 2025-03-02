@@ -141,25 +141,6 @@ export default function PlanPage() {
             )}
           </div>
 
-          {/* Instructions card - Clearer instructions */}
-          <Card className="bg-muted/30 border-dashed">
-            <CardContent className="pt-6">
-              <div className="flex gap-2 items-center">
-                <div className="bg-primary/10 p-2 rounded-full flex-shrink-0">
-                  <Check className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Click on a plan card to view plan details and be redirected
-                    to Stripe&apos;s secure payment portal, where you can
-                    complete your subscription change. Your current plan remains
-                    active until you finalize the change in Stripe.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           <div className="grid gap-6 lg:grid-cols-3">
             {plans.map((plan) => (
               <Card
@@ -289,6 +270,25 @@ export default function PlanPage() {
               </Card>
             ))}
           </div>
+
+          {/* Instructions card - moved below plan cards */}
+          <Card className="bg-muted/30 border-dashed">
+            <CardContent className="pt-6">
+              <div className="flex gap-2 items-center">
+                <div className="bg-primary/10 p-2 rounded-full flex-shrink-0">
+                  <Check className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    Click on a plan card to view plan details and be redirected
+                    to Stripe&apos;s secure payment portal, where you can
+                    complete your subscription change. Your current plan remains
+                    active until you finalize the change in Stripe.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
