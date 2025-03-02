@@ -1,13 +1,15 @@
 "use client";
 
 import {
-  BadgeCheck,
-  Bell,
   ChevronsUpDown,
   CreditCard,
   LogOut,
   Sparkles,
+  User,
+  Receipt,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import React from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -26,6 +28,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { supabaseAnon } from "@/lib/supabase";
+import { useProfile } from "@/hooks/use-profile";
 
 export function NavUser({
   user,
@@ -37,6 +40,32 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
+  const router = useRouter();
+
+  // Always call hooks at the top level - required by React rules
+  const { profile, isLoading } = useProfile();
+  const [showUpgrade, setShowUpgrade] = React.useState(false);
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  // Use this effect to mark when component is mounted in browser
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Handle profile data changes in useEffect to avoid re-render loops
+  React.useEffect(() => {
+    // Only run on client-side after initial mount
+    if (!isMounted) return;
+
+    // Only process when profile data is loaded and stable
+    if (!isLoading && profile !== undefined) {
+      const isFreePlan =
+        !profile?.subscription ||
+        (profile.subscription.plans &&
+          profile.subscription.plans.plan_name.toLowerCase() === "free");
+      setShowUpgrade(isFreePlan);
+    }
+  }, [profile, isLoading, isMounted]);
 
   const handleLogout = async () => {
     try {
@@ -66,6 +95,49 @@ export function NavUser({
     }
   };
 
+  const handleUpgrade = () => {
+    router.push("/dashboard/plan");
+  };
+
+  const handleProfileClick = () => {
+    router.push("/dashboard/settings/profile");
+  };
+
+  const handleBillingClick = () => {
+    router.push("/dashboard/billing");
+  };
+
+  const handlePlansClick = () => {
+    router.push("/dashboard/plan");
+  };
+
+  // Early return a simplified version during SSR or before client mount
+  if (!isMounted) {
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <SidebarMenuButton size="lg">
+                <Avatar className="h-8 w-8 rounded-lg">
+                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarFallback className="rounded-lg">CN</AvatarFallback>
+                </Avatar>
+                <div className="grid flex-1 text-left text-sm leading-tight">
+                  <span className="truncate font-semibold">{user.name}</span>
+                  <span className="truncate text-xs">{user.email}</span>
+                </div>
+                <ChevronsUpDown className="ml-auto size-4" />
+              </SidebarMenuButton>
+            </DropdownMenuTrigger>
+            {/* No menu content during SSR */}
+          </DropdownMenu>
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
+  }
+
+  // Full component rendered only on client after mount
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -106,24 +178,26 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <Sparkles className="mr-2 h-4 w-4" />
-                Upgrade to Pro
-              </DropdownMenuItem>
+              {showUpgrade && (
+                <DropdownMenuItem onClick={handleUpgrade}>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Upgrade
+                </DropdownMenuItem>
+              )}
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <BadgeCheck className="mr-2 h-4 w-4" />
-                Account
-              </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePlansClick}>
                 <CreditCard className="mr-2 h-4 w-4" />
+                Plans
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleBillingClick}>
+                <Receipt className="mr-2 h-4 w-4" />
                 Billing
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Bell className="mr-2 h-4 w-4" />
-                Notifications
+              <DropdownMenuItem onClick={handleProfileClick}>
+                <User className="mr-2 h-4 w-4" />
+                Profile
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
