@@ -3,11 +3,7 @@ import Stripe from "stripe";
 import { supabaseAnon } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
 import { Plan, Subscription } from "@/lib/types";
-
-const STRIPE_SECRET_KEY =
-  process.env.NODE_ENV === "production"
-    ? process.env.STRIPE_SECRET_KEY
-    : process.env.STRIPE_SECRET_KEY_TEST;
+import { STRIPE_SECRET_KEY } from "@/lib/constants";
 
 const stripe = new Stripe(STRIPE_SECRET_KEY!, {
   apiVersion: "2025-02-24.acacia",
