@@ -139,7 +139,7 @@ export async function GET(request: Request) {
       baseUrl =
         process.env.NEXT_PUBLIC_APP_URL ||
         (process.env.NODE_ENV === "production"
-          ? "https://app.tuberbrie.com"
+          ? "https://app.tuberbrief.com"
           : "http://localhost:3000");
     }
 
