@@ -16,6 +16,21 @@ pm2 delete <app_name_or_id>
 
 pm2 list
 
+## List all Certbot certificates to find the one tied to your-app
+
+sudo certbot certificates
+
+## Look for the certificate associated with your domain (e.g., flow-fusion.example.com). The output will show something like:
+
+Certificate Name: flow-fusion.example.com
+Domains: flow-fusion.example.com
+Expiry Date: 2025-06-01
+Certificate Path: /etc/letsencrypt/live/flow-fusion.example.com/fullchain.pem
+
+## Delete the certificate
+
+sudo certbot delete --cert-name <certificate_name>
+
 ## Navigate to the parent directory
 
 cd /var/www
