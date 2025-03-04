@@ -72,11 +72,11 @@ export async function GET(request: Request) {
     // Look for auth cookie if no bearer token
     if (!accessToken && cookieHeader) {
       const cookies = cookieHeader.split(";").map((c) => c.trim());
-      const authCookie = cookies.find((c) => c.startsWith("flow-fusion-auth="));
+      const authCookie = cookies.find((c) => c.startsWith("tuber-brief-auth="));
 
       if (authCookie) {
         try {
-          const cookieValue = authCookie.substring("flow-fusion-auth=".length);
+          const cookieValue = authCookie.substring("tuber-brief-auth=".length);
           const sessionData = JSON.parse(decodeURIComponent(cookieValue));
 
           if (sessionData?.access_token) {

@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       });
 
       // Set the auth cookie
-      response.cookies.set("flow-fusion-auth", JSON.stringify(session), {
+      response.cookies.set("tuber-brief-auth", JSON.stringify(session), {
         path: "/",
         sameSite: "lax",
         secure: process.env.NODE_ENV === "production",
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
       });
 
       // Clear the auth cookie
-      response.cookies.set("flow-fusion-auth", "", {
+      response.cookies.set("tuber-brief-auth", "", {
         expires: new Date(0),
         path: "/",
         sameSite: "lax",

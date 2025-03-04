@@ -45,7 +45,7 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
           ssh -o StrictHostKeyChecking=no -i private_key.pem $SERVER_USER@$SERVER_IP "
-            cd /var/www/flow-fusion &&
+            cd /var/www/app.tuberbrief.com &&
             sudo cp -r . ../backup-$(date +%Y%m%d%H%M%S) &&
             git pull &&
             npm install &&

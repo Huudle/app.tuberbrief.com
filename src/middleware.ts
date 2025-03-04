@@ -6,7 +6,7 @@ import { logger } from "@/lib/logger";
 export async function middleware(request: NextRequest) {
   try {
     // Get the session cookie
-    const authCookie = request.cookies.get("flow-fusion-auth");
+    const authCookie = request.cookies.get("tuber-brief-auth");
     let cookieSession;
     try {
       cookieSession = authCookie ? JSON.parse(authCookie.value) : null;

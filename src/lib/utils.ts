@@ -130,7 +130,7 @@ export function parseRelativeTime(relativeTime: string): string {
 /**
  * Returns the appropriate base URL for the current environment
  * - Development: http://localhost:3000
- * - Production: https://flow-fusion.netlify.app
+ * - Production: https://app.tuberbrief.com
  */
 export function getAppUrl(): string {
   if (process.env.NODE_ENV === "development") {
