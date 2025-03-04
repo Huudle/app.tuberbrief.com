@@ -15,6 +15,7 @@ import { supabaseAnon } from "@/lib/supabase";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { logger } from "@/lib/logger";
+import Image from "next/image";
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -95,7 +96,17 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center p-4 gap-8">
+      <div className="flex justify-center">
+        <Image
+          src="/logo-001.png"
+          alt="TuberBrief Logo"
+          width={180}
+          height={180}
+          priority
+          className="h-auto w-auto"
+        />
+      </div>
       <Card className="w-full max-w-md">
         <form onSubmit={handleSubmit}>
           <CardHeader>

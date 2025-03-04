@@ -19,6 +19,7 @@ import {
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { logger } from "@/lib/logger";
+import Image from "next/image";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -104,7 +105,17 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
+    <div className="flex min-h-screen flex-col items-center justify-center p-4 gap-8">
+      <div className="flex justify-center">
+        <Image
+          src="/logo-001.png"
+          alt="TuberBrief Logo"
+          width={180}
+          height={180}
+          priority
+          className="h-auto w-auto"
+        />
+      </div>
       <Card className="w-full max-w-md">
         <form onSubmit={handleSubmit}>
           <CardHeader>
