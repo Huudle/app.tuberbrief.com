@@ -113,7 +113,7 @@ export default function SignUpPage() {
           width={180}
           height={180}
           priority
-          className="h-auto w-auto"
+          className="h-auto w-auto dark:invert"
         />
       </div>
       <Card className="w-full max-w-md">
