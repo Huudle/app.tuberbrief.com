@@ -21,6 +21,15 @@ npm install -g pm2
 sudo apt install nginx
 
 2. Build Your Next.js App
+
+ ## Ensure ACLs are enabled (usually default on Ubuntu):
+
+sudo apt install acl
+
+## Grant ubuntu read, write, and execute permissions:
+
+sudo setfacl -R -m u:ubuntu:rwx /var/www
+
 	1.	Clone your repository on the server:
 
 git clone https://github.com/your-repo.git
