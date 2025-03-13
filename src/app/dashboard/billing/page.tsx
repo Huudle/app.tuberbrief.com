@@ -46,6 +46,7 @@ interface ProfileWithUsage {
     status?: string;
     start_date?: number;
     end_date?: number;
+    usage_count?: number;
   };
   id?: string;
   monthly_usage_count?: number;
@@ -143,6 +144,7 @@ export default function BillingPage() {
   function getMonthlyUsageCount(profile: ProfileWithUsage): number {
     // Try various possible locations for the monthly usage count
     return (
+      profile?.subscription?.usage_count ||
       profile?.monthly_usage_count ||
       profile?.metadata?.monthly_usage_count ||
       profile?.usage?.monthly ||
