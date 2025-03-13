@@ -153,16 +153,44 @@ export default function BillingPage() {
   }
 
   function getBillingPeriodPercentage(profile: ProfileWithUsage): number {
+    console.log("Billing period debug:", {
+      start_date: profile?.subscription?.start_date,
+      end_date: profile?.subscription?.end_date,
+      start_date_type: typeof profile?.subscription?.start_date,
+      end_date_type: typeof profile?.subscription?.end_date,
+    });
+
     if (
       !profile?.subscription?.start_date ||
       !profile?.subscription?.end_date
     ) {
+      console.log("Returning 0 - missing start_date or end_date");
       return 0;
     }
 
-    const startDate = profile.subscription.start_date;
-    const endDate = profile.subscription.end_date;
+    // Convert dates to number if they're strings
+    let startDate = profile.subscription.start_date;
+    let endDate = profile.subscription.end_date;
+
+    // Convert to numbers if they're strings (ISO dates)
+    if (typeof startDate === "string") {
+      startDate = Math.floor(new Date(startDate).getTime() / 1000);
+    }
+
+    if (typeof endDate === "string") {
+      endDate = Math.floor(new Date(endDate).getTime() / 1000);
+    }
+
     const now = Math.floor(Date.now() / 1000); // Current time in seconds
+
+    console.log("Date values:", {
+      startDate,
+      endDate,
+      now,
+      startDateFormatted: new Date(startDate * 1000).toISOString(),
+      endDateFormatted: new Date(endDate * 1000).toISOString(),
+      nowFormatted: new Date(now * 1000).toISOString(),
+    });
 
     // Check if the dates are valid
     if (isNaN(startDate) || isNaN(endDate) || startDate >= endDate) {
@@ -172,15 +200,22 @@ export default function BillingPage() {
 
     // Prevent negative progress (if current time is before start date)
     if (now < startDate) {
+      console.log("Returning 0 - current time before start date");
       return 0;
     }
 
     // Cap at 100% if we're past the end date
     if (now > endDate) {
+      console.log("Returning 100 - current time past end date");
       return 100;
     }
 
-    return calculatePercentage(now - startDate, endDate - startDate);
+    const percentage = calculatePercentage(
+      now - startDate,
+      endDate - startDate
+    );
+    console.log("Calculated percentage:", percentage);
+    return percentage;
   }
 
   // Function to handle payment method management via Stripe Portal
