@@ -66,16 +66,6 @@ export function generateEmailTemplate({
       : ""
   }
 
-  ${
-    showTranscript && captions?.transcript
-      ? `
-  <div style="margin: 35px 0; padding: 0;">
-    <p style="margin: 0;">${captions.transcript}</p>
-  </div>
-  `
-      : ""
-  }
-
   <div style="margin: 35px 0; padding: 0;">
     <p style="margin: 0;">👉 Watch the video: <a href="${videoUrl}" style="color: #0066cc;">${videoUrl}</a></p>
   </div>
