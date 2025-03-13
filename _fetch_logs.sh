@@ -6,7 +6,7 @@ date_part=$(date +"%Y/%m/%d")
 # Define remote and local paths
 REMOTE_USER="ubuntu"
 REMOTE_HOST="141.144.244.28"
-REMOTE_PATH="/var/www/app.tuberbrie.com/logs/$date_part.log"
+REMOTE_PATH="/var/www/app.tuberbrief.com/logs/$date_part.log"
 LOCAL_PATH="$HOME/Downloads/"
 
 # Print the command that will be executed
