@@ -91,23 +91,131 @@ export async function POST(req: Request) {
     }
 
     if (newPlan.monthly_cost === 0) {
-      // Handle free plan directly
-      await supabaseAnon.from("subscriptions").upsert(
-        {
-          profile_id: userId,
-          plan_id: newPlan.id,
-          status: "active",
-          usage_count: 0,
-          start_date: new Date().toISOString(),
-          end_date: null,
-        },
-        { onConflict: "profile_id" }
+      // Get or create a Stripe customer even for free plans
+      const stripeCustomerId = await getOrCreateCustomer(
+        currentSub?.stripe_customer_id
       );
 
-      return NextResponse.json({
-        success: true,
-        requiresPaymentMethod: false,
-      });
+      // Check if the free plan has a valid price ID
+      if (!newPlan.stripe_price_id) {
+        logger.error("Free plan is missing a Stripe price ID", {
+          prefix: "Subscription",
+          data: { planId: newPlan.id, planName: newPlan.plan_name },
+        });
+
+        // Fallback to just creating the subscription in database without Stripe subscription
+        await supabaseAnon.from("subscriptions").upsert(
+          {
+            profile_id: userId,
+            plan_id: newPlan.id,
+            status: "active",
+            usage_count: 0,
+            start_date: new Date().toISOString(),
+            end_date: null,
+            stripe_customer_id: stripeCustomerId,
+          },
+          { onConflict: "profile_id" }
+        );
+
+        logger.info(
+          "Free plan subscription updated with Stripe customer only (no Stripe subscription)",
+          {
+            prefix: "Subscription",
+            data: {
+              userId,
+              planId: newPlan.id,
+              stripeCustomerId,
+            },
+          }
+        );
+
+        return NextResponse.json({
+          success: true,
+          requiresPaymentMethod: false,
+          customer_id: stripeCustomerId,
+        });
+      }
+
+      try {
+        // Create an actual Stripe subscription for the free plan
+        const subscription = await stripe.subscriptions.create({
+          customer: stripeCustomerId,
+          items: [{ price: newPlan.stripe_price_id }],
+          metadata: {
+            user_id: userId,
+            plan_type: "free",
+          },
+          // No payment needed for free plan
+          collection_method: "charge_automatically",
+        });
+
+        // Update subscription in database
+        await supabaseAnon.from("subscriptions").upsert(
+          {
+            profile_id: userId,
+            plan_id: newPlan.id,
+            status: subscription.status,
+            usage_count: 0,
+            start_date: new Date(
+              subscription.current_period_start * 1000
+            ).toISOString(),
+            end_date: new Date(
+              subscription.current_period_end * 1000
+            ).toISOString(),
+            stripe_customer_id: stripeCustomerId,
+            stripe_subscription_id: subscription.id,
+          },
+          { onConflict: "profile_id" }
+        );
+
+        logger.info("Free plan subscription created with Stripe subscription", {
+          prefix: "Subscription",
+          data: {
+            userId,
+            planId: newPlan.id,
+            stripeCustomerId,
+            stripeSubscriptionId: subscription.id,
+            status: subscription.status,
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          requiresPaymentMethod: false,
+          customer_id: stripeCustomerId,
+          subscription_id: subscription.id,
+        });
+      } catch (error) {
+        logger.error("Failed to create Stripe subscription for free plan", {
+          prefix: "Subscription",
+          data: {
+            error: error instanceof Error ? error.message : "Unknown error",
+            userId,
+            planId: newPlan.id,
+            stripeCustomerId,
+          },
+        });
+
+        // Fallback to just creating the subscription in database
+        await supabaseAnon.from("subscriptions").upsert(
+          {
+            profile_id: userId,
+            plan_id: newPlan.id,
+            status: "active",
+            usage_count: 0,
+            start_date: new Date().toISOString(),
+            end_date: null,
+            stripe_customer_id: stripeCustomerId,
+          },
+          { onConflict: "profile_id" }
+        );
+
+        return NextResponse.json({
+          success: true,
+          requiresPaymentMethod: false,
+          customer_id: stripeCustomerId,
+        });
+      }
     }
 
     // Function to get or create a Stripe customer
@@ -142,7 +250,7 @@ export async function POST(req: Request) {
       // Get user email for new customer
       const { data: profile } = await supabaseAnon
         .from("profiles")
-        .select("id, email")
+        .select("id, email, first_name, last_name")
         .eq("id", userId)
         .single();
 
@@ -152,7 +260,7 @@ export async function POST(req: Request) {
 
       // Search for active customers with matching email AND user ID metadata
       const existingCustomers = await stripe.customers.search({
-        query: `email:"${profile.email}" AND metadata['user_id']:"${userId}"`,
+        query: `email:"${profile.email}" AND metadata['profile_id']:"${userId}"`,
         limit: 1,
       });
 
@@ -169,11 +277,17 @@ export async function POST(req: Request) {
       }
 
       // If no valid customer found, create new one with metadata
+      const customerName = `${profile.first_name || ""} ${
+        profile.last_name || ""
+      }`.trim();
       const customer = await stripe.customers.create({
         email: profile.email,
+        name: customerName || undefined,
         metadata: {
           profile_id: profile.id,
           created_at: new Date().toISOString(),
+          first_name: profile.first_name || "",
+          last_name: profile.last_name || "",
         },
       });
 
