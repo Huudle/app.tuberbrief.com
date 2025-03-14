@@ -81,11 +81,73 @@ export default function SignUpPage() {
 
       if (data?.user?.id) {
         const planId = await getFreePlanId();
-        // Create initial subscription with free plan
-        const subscription = await createSubscription(data.user.id, planId);
 
-        if (!subscription) {
-          throw new Error("Failed to create subscription");
+        logger.info("Creating subscription with Stripe customer for new user", {
+          prefix: "Signup",
+          data: { userId: data.user.id },
+        });
+
+        // Call the subscription API endpoint directly to create a Stripe customer
+        try {
+          const response = await fetch("/api/subscription", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              userId: data.user.id,
+              planId: planId,
+            }),
+          });
+
+          if (!response.ok) {
+            logger.warn(
+              "API subscription creation failed, falling back to direct method",
+              {
+                prefix: "Signup",
+                data: {
+                  userId: data.user.id,
+                  status: response.status,
+                  statusText: response.statusText,
+                },
+              }
+            );
+
+            // Fallback to direct subscription creation if API fails
+            const subscription = await createSubscription(data.user.id, planId);
+            if (!subscription) {
+              throw new Error("Failed to create subscription");
+            }
+          } else {
+            const result = await response.json();
+            logger.info(
+              "Successfully created subscription with Stripe customer",
+              {
+                prefix: "Signup",
+                data: {
+                  userId: data.user.id,
+                  hasCustomerId: !!result.customer_id,
+                },
+              }
+            );
+          }
+        } catch (subscriptionError) {
+          logger.error("Error creating subscription with Stripe customer", {
+            prefix: "Signup",
+            data: {
+              userId: data.user.id,
+              error:
+                subscriptionError instanceof Error
+                  ? subscriptionError.message
+                  : "Unknown error",
+            },
+          });
+
+          // Fallback to direct subscription creation
+          const subscription = await createSubscription(data.user.id, planId);
+          if (!subscription) {
+            throw new Error("Failed to create subscription");
+          }
         }
 
         logger.info("✅ User signed up successfully", {
