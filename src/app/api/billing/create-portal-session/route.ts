@@ -152,7 +152,7 @@ export async function GET(request: Request) {
       prefix: "API/billing/create-portal-session",
       data: {
         customerId,
-        returnUrl: `${baseUrl}/dashboard/billing`,
+        returnUrl: `${baseUrl}/dashboard`,
         action: request.url.includes("plan=change")
           ? "change_plan"
           : request.url.includes("action=cancel")
@@ -200,7 +200,7 @@ export async function GET(request: Request) {
     // Set up portal configuration options
     const portalOptions: Stripe.BillingPortal.SessionCreateParams = {
       customer: customerId,
-      return_url: `${baseUrl}/dashboard/billing`,
+      return_url: `${baseUrl}/dashboard`,
     };
 
     // Add configuration ID if available
