@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { supabaseAnon } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
-import { STRIPE_SECRET_KEY } from "@/lib/constants";
+import { STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from "@/lib/constants";
 
 const stripe = new Stripe(STRIPE_SECRET_KEY!, {
   apiVersion: "2025-02-24.acacia",
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     const event = stripe.webhooks.constructEvent(
       body,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
+      STRIPE_WEBHOOK_SECRET!
     );
 
     // Log successful verification
