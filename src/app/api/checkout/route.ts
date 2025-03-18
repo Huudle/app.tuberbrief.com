@@ -1,12 +1,7 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 import { logger } from "@/lib/logger";
 import { getAppUrl } from "@/lib/utils";
-import { STRIPE_SECRET_KEY } from "@/lib/constants";
-
-const stripe = new Stripe(STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-02-24.acacia",
-});
+import { getOrCreateStripeCustomer, stripe } from "@/lib/stripe-utils";
 
 export async function POST(req: Request) {
   try {
@@ -32,63 +27,15 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create customer if doesn't exist
-    let stripeCustomerId = profile?.subscription?.stripe_customer_id;
-
-    if (!stripeCustomerId || stripeCustomerId === "undefined") {
-      const customer = await stripe.customers.create({
-        email: profile?.email,
-        name:
-          `${profile?.first_name} ${profile?.last_name}`.trim() || undefined,
-        metadata: {
-          source: "checkout-flow",
-          profile_id: profile.id, // Store profile_id for webhook mapping
-        },
-      });
-      stripeCustomerId = customer.id;
-    }
-
-    // Add after getting the customerId from the request
-    if (stripeCustomerId && stripeCustomerId.startsWith("cus_")) {
-      // Verify customer exists and update metadata if needed
-      try {
-        const existingCustomer = await stripe.customers.retrieve(
-          stripeCustomerId
-        );
-
-        // Check if the customer metadata has the profile_id, if not update it
-        if (
-          !("deleted" in existingCustomer) &&
-          (!existingCustomer.metadata?.profile_id ||
-            existingCustomer.metadata.profile_id !== profile.id)
-        ) {
-          await stripe.customers.update(stripeCustomerId, {
-            metadata: {
-              ...existingCustomer.metadata,
-              profile_id: profile.id,
-              updated_at: new Date().toISOString(),
-            },
-          });
-
-          logger.info("Updated customer metadata with profile_id", {
-            prefix: "checkout",
-            data: {
-              customerId: stripeCustomerId,
-              profileId: profile.id,
-            },
-          });
-        }
-      } catch (e) {
-        logger.warn("Invalid customer ID, creating new customer", {
-          prefix: "checkout",
-          data: {
-            receivedCustomerId: stripeCustomerId,
-            error: e instanceof Error ? e.message : "Unknown error",
-          },
-        });
-        stripeCustomerId = null;
-      }
-    }
+    // Get or create a Stripe customer
+    const stripeCustomerId = await getOrCreateStripeCustomer({
+      existingCustomerId: profile?.subscription?.stripe_customer_id,
+      profileId: profile.id,
+      email: profile?.email,
+      firstName: profile?.first_name,
+      lastName: profile?.last_name,
+      source: "checkout",
+    });
 
     // Create Checkout Session
     const session = await stripe.checkout.sessions.create({
