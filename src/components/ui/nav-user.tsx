@@ -4,7 +4,6 @@ import {
   ChevronsUpDown,
   CreditCard,
   LogOut,
-  Sparkles,
   User,
   Receipt,
 } from "lucide-react";
@@ -28,7 +27,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { supabaseAnon } from "@/lib/supabase";
-import { useProfile } from "@/hooks/use-profile";
 
 export function NavUser({
   user,
@@ -41,31 +39,12 @@ export function NavUser({
 }) {
   const { isMobile } = useSidebar();
   const router = useRouter();
-
-  // Always call hooks at the top level - required by React rules
-  const { profile, isLoading } = useProfile();
-  const [showUpgrade, setShowUpgrade] = React.useState(false);
   const [isMounted, setIsMounted] = React.useState(false);
 
   // Use this effect to mark when component is mounted in browser
   React.useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  // Handle profile data changes in useEffect to avoid re-render loops
-  React.useEffect(() => {
-    // Only run on client-side after initial mount
-    if (!isMounted) return;
-
-    // Only process when profile data is loaded and stable
-    if (!isLoading && profile !== undefined) {
-      const isFreePlan =
-        !profile?.subscription ||
-        (profile.subscription.plans &&
-          profile.subscription.plans.plan_name.toLowerCase() === "free");
-      setShowUpgrade(isFreePlan);
-    }
-  }, [profile, isLoading, isMounted]);
 
   const handleLogout = async () => {
     try {
@@ -93,10 +72,6 @@ export function NavUser({
     } catch (error) {
       console.error("Error logging out:", error);
     }
-  };
-
-  const handleUpgrade = () => {
-    router.push("/dashboard/plan");
   };
 
   const handleProfileClick = () => {
@@ -176,15 +151,6 @@ export function NavUser({
                 </div>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              {showUpgrade && (
-                <DropdownMenuItem onClick={handleUpgrade}>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Upgrade
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={handlePlansClick}>
