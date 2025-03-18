@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
 import { supabaseAnon } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
 import { Plan, Subscription } from "@/lib/types";
-import { STRIPE_SECRET_KEY } from "@/lib/constants";
-
-const stripe = new Stripe(STRIPE_SECRET_KEY!, {
-  apiVersion: "2025-02-24.acacia",
-});
+import { getOrCreateStripeCustomer, stripe } from "@/lib/stripe-utils";
 
 export async function POST(req: Request) {
   const startTime = Date.now();
@@ -91,10 +86,33 @@ export async function POST(req: Request) {
     }
 
     if (newPlan.monthly_cost === 0) {
+      // Fetch profile data first
+      const { data: profile } = await supabaseAnon
+        .from("profiles")
+        .select("id, email, first_name, last_name")
+        .eq("id", userId)
+        .single();
+
+      if (!profile?.email) {
+        logger.error("User email not found", {
+          prefix: "Subscription",
+          data: { userId },
+        });
+        return NextResponse.json(
+          { error: "User email not found" },
+          { status: 400 }
+        );
+      }
+
       // Get or create a Stripe customer even for free plans
-      const stripeCustomerId = await getOrCreateCustomer(
-        currentSub?.stripe_customer_id
-      );
+      const stripeCustomerId = await getOrCreateStripeCustomer({
+        existingCustomerId: currentSub?.stripe_customer_id,
+        profileId: userId,
+        email: profile.email,
+        firstName: profile.first_name,
+        lastName: profile.last_name,
+        source: "Subscription",
+      });
 
       // Check if the free plan has a valid price ID
       if (!newPlan.stripe_price_id) {
@@ -218,94 +236,33 @@ export async function POST(req: Request) {
       }
     }
 
-    // Function to get or create a Stripe customer
-    async function getOrCreateCustomer(existingCustomerId?: string) {
-      // Try to use existing customer if available
-      if (existingCustomerId) {
-        try {
-          const customer = await stripe.customers.retrieve(existingCustomerId);
+    // Fetch profile data first
+    const { data: profile } = await supabaseAnon
+      .from("profiles")
+      .select("id, email, first_name, last_name")
+      .eq("id", userId)
+      .single();
 
-          // Check if customer was deleted
-          if (customer.deleted) {
-            logger.warn("Customer was deleted, creating new one", {
-              prefix: "Subscription",
-              data: { customerId: existingCustomerId },
-            });
-            throw new Error("Customer was deleted");
-          }
-
-          return customer.id;
-        } catch (error) {
-          logger.warn("Failed to retrieve valid customer", {
-            prefix: "Subscription",
-            data: {
-              customerId: existingCustomerId,
-              error: error instanceof Error ? error.message : "Unknown error",
-            },
-          });
-          // Continue to create new customer
-        }
-      }
-
-      // Get user email for new customer
-      const { data: profile } = await supabaseAnon
-        .from("profiles")
-        .select("id, email, first_name, last_name")
-        .eq("id", userId)
-        .single();
-
-      if (!profile?.email) {
-        throw new Error("User email not found");
-      }
-
-      // Search for active customers with matching email AND user ID metadata
-      const existingCustomers = await stripe.customers.search({
-        query: `email:"${profile.email}" AND metadata['profile_id']:"${userId}"`,
-        limit: 1,
-      });
-
-      // Use matching customer if found and valid
-      if (existingCustomers.data.length > 0) {
-        const customer = existingCustomers.data[0];
-        if (!customer.deleted) {
-          logger.info("Found existing customer by email and user ID", {
-            prefix: "Subscription",
-            data: { customerId: customer.id, email: profile.email },
-          });
-          return customer.id;
-        }
-      }
-
-      // If no valid customer found, create new one with metadata
-      const customerName = `${profile.first_name || ""} ${
-        profile.last_name || ""
-      }`.trim();
-      const customer = await stripe.customers.create({
-        email: profile.email,
-        name: customerName || undefined,
-        metadata: {
-          profile_id: profile.id,
-          created_at: new Date().toISOString(),
-          first_name: profile.first_name || "",
-          last_name: profile.last_name || "",
-        },
-      });
-
-      logger.info("Created new Stripe customer with metadata", {
+    if (!profile?.email) {
+      logger.error("User email not found", {
         prefix: "Subscription",
-        data: {
-          customerId: customer.id,
-          metadata: customer.metadata,
-        },
+        data: { userId },
       });
-
-      return customer.id;
+      return NextResponse.json(
+        { error: "User email not found" },
+        { status: 400 }
+      );
     }
 
     // Get valid customer ID
-    const stripeCustomerId = await getOrCreateCustomer(
-      currentSub?.stripe_customer_id
-    );
+    const stripeCustomerId = await getOrCreateStripeCustomer({
+      existingCustomerId: currentSub?.stripe_customer_id,
+      profileId: userId,
+      email: profile.email,
+      firstName: profile.first_name,
+      lastName: profile.last_name,
+      source: "Subscription",
+    });
 
     // Create new subscription
     const subscription = await stripe.subscriptions.create({
