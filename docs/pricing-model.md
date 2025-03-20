@@ -11,7 +11,7 @@
 ## Basic Plan ($3.95/month)
 
 - Monitor up to 10 YouTube channels
-- 10 video notifications per month
+- 50 video notifications per month
 - Instant notifications
 - Advanced AI summaries
 - Video transcriptions
@@ -21,7 +21,7 @@
 ## Pro Plan ($9.95/month)
 
 - Monitor up to 35 YouTube channels
-- 40 video notifications per month
+- 300 video notifications per month
 - Instant notifications
 - Advanced AI summaries
 - Video transcriptions
@@ -36,7 +36,7 @@
 | Feature               | Free  | Basic    | Pro      |
 | --------------------- | ----- | -------- | -------- |
 | Channel Limit         | 3     | 10       | 35       |
-| Monthly Notifications | 5     | 10       | 40       |
+| Monthly Notifications | 5     | 50       | 300      |
 | Notifications Type    | Daily | Instant  | Instant  |
 | Advanced AI Summaries | ✅    | ✅       | ✅       |
 | Video Transcriptions  | ❌    | ✅       | ✅       |
@@ -51,3 +51,4 @@
 - Instant notifications are sent as soon as new videos are detected (Basic and Pro plans)
 - All plans include advanced AI summaries
 - Notification limits reset monthly
+- For detailed cost analysis, please refer to cost-calculation.md
