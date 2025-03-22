@@ -230,6 +230,7 @@ export class QueueWorker {
             content: {
               briefSummary: aiSummary.briefSummary,
               keyPoints: aiSummary.keyPoints,
+              title: message.title
             },
             model: "gpt-4o-mini", // Get from AI processor
           });

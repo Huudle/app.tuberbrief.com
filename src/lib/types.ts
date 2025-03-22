@@ -184,6 +184,7 @@ export interface VideoAIContent {
   content: {
     briefSummary?: string;
     keyPoints?: string[];
+    title?: string;
     // ... can add more AI-generated content types in the future
   };
   model: string;
