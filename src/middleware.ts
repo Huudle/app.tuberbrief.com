@@ -81,12 +81,24 @@ export async function middleware(request: NextRequest) {
     if (isApiRoute(pathname)) {
       // Handle preflight requests
       if (request.method === "OPTIONS") {
+        // For preflight requests, we need to check the origin first
+        if (!isAllowedOrigin(origin)) {
+          return new NextResponse(null, {
+            status: 403,
+            statusText: "Forbidden",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          });
+        }
+
+        // At this point we know origin is not null and is allowed
         return new NextResponse(null, {
           status: 204,
           headers: {
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Origin": origin || "*",
+            "Access-Control-Allow-Origin": origin!,
             "Access-Control-Max-Age": "86400", // 24 hours
             "Access-Control-Allow-Credentials": "true",
           },
@@ -111,13 +123,15 @@ export async function middleware(request: NextRequest) {
           statusText: "Unauthorized",
           headers: {
             "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": origin!,
+            "Access-Control-Allow-Credentials": "true",
           },
         });
       }
 
       // Allow the request and set CORS headers
       const response = NextResponse.next();
-      response.headers.set("Access-Control-Allow-Origin", origin || "*");
+      response.headers.set("Access-Control-Allow-Origin", origin!);
       response.headers.set(
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, DELETE, OPTIONS"
