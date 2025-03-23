@@ -17,11 +17,6 @@ function isApiRoute(pathname: string) {
   return pathname.startsWith("/api/");
 }
 
-// Helper function to check if the request is for a protected API route
-function isProtectedApiRoute(pathname: string) {
-  return pathname.startsWith("/api/auth/callback");
-}
-
 // Helper function to check if the request is from an allowed domain
 function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false;
@@ -30,46 +25,6 @@ function isAllowedOrigin(origin: string | null): boolean {
 
 export async function middleware(request: NextRequest) {
   try {
-    // Get the session cookie
-    const authCookie = request.cookies.get("tuber-brief-auth");
-    let cookieSession;
-    try {
-      cookieSession = authCookie ? JSON.parse(authCookie.value) : null;
-    } catch (e) {
-      logger.error("🚫 Failed to parse auth cookie", { data: { error: e } });
-    }
-
-    const {
-      data: { session },
-      error: sessionError,
-    } = await supabaseAnon.auth.getSession();
-
-    if (sessionError) {
-      throw sessionError;
-    }
-
-    // Use either session source for auth check
-    const isAuthenticated = !!session || !!cookieSession;
-
-    // Protected routes check
-    if (!isAuthenticated && request.nextUrl.pathname.startsWith("/dashboard")) {
-      logger.info("🔒 Access denied - Protected route", {
-        data: { path: request.nextUrl.pathname },
-      });
-      return NextResponse.redirect(new URL("/login", request.url));
-    }
-
-    // Auth pages check
-    if (
-      isAuthenticated &&
-      ["/login", "/signup"].includes(request.nextUrl.pathname)
-    ) {
-      logger.info("👋 Redirecting authenticated user", {
-        data: { path: request.nextUrl.pathname },
-      });
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
-
     const pathname = request.nextUrl.pathname;
     const origin = request.headers.get("origin");
 
@@ -120,25 +75,6 @@ export async function middleware(request: NextRequest) {
         );
       }
 
-      // Check authentication for protected API routes
-      if (isProtectedApiRoute(pathname) && !isAuthenticated) {
-        return new NextResponse(
-          JSON.stringify({
-            error: "Unauthorized",
-            message: "Authentication required",
-          }),
-          {
-            status: 401,
-            statusText: "Unauthorized",
-            headers: {
-              "Content-Type": "application/json",
-              "Access-Control-Allow-Origin": origin!,
-              "Access-Control-Allow-Credentials": "true",
-            },
-          }
-        );
-      }
-
       // Allow the request and set CORS headers
       const response = NextResponse.next();
       response.headers.set("Access-Control-Allow-Origin", origin!);
@@ -153,6 +89,46 @@ export async function middleware(request: NextRequest) {
       response.headers.set("Access-Control-Allow-Credentials", "true");
 
       return response;
+    }
+
+    // Get the session cookie
+    const authCookie = request.cookies.get("tuber-brief-auth");
+    let cookieSession;
+    try {
+      cookieSession = authCookie ? JSON.parse(authCookie.value) : null;
+    } catch (e) {
+      logger.error("🚫 Failed to parse auth cookie", { data: { error: e } });
+    }
+
+    const {
+      data: { session },
+      error: sessionError,
+    } = await supabaseAnon.auth.getSession();
+
+    if (sessionError) {
+      throw sessionError;
+    }
+
+    // Use either session source for auth check
+    const isAuthenticated = !!session || !!cookieSession;
+
+    // Protected routes check
+    if (!isAuthenticated && request.nextUrl.pathname.startsWith("/dashboard")) {
+      logger.info("🔒 Access denied - Protected route", {
+        data: { path: request.nextUrl.pathname },
+      });
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    // Auth pages check
+    if (
+      isAuthenticated &&
+      ["/login", "/signup"].includes(request.nextUrl.pathname)
+    ) {
+      logger.info("👋 Redirecting authenticated user", {
+        data: { path: request.nextUrl.pathname },
+      });
+      return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
     return NextResponse.next();
