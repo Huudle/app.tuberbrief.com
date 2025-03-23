@@ -26,6 +26,12 @@ function isProtectedApiRoute(pathname: string) {
   );
 }
 
+// Helper function to check if the request is from an allowed domain
+function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) return false;
+  return allowedOrigins.includes(origin);
+}
+
 export async function middleware(request: NextRequest) {
   try {
     // Get the session cookie
@@ -82,12 +88,13 @@ export async function middleware(request: NextRequest) {
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Allow-Origin": origin || "*",
             "Access-Control-Max-Age": "86400", // 24 hours
+            "Access-Control-Allow-Credentials": "true",
           },
         });
       }
 
       // Check if the origin is allowed
-      if (origin && !allowedOrigins.includes(origin)) {
+      if (!isAllowedOrigin(origin)) {
         return new NextResponse(null, {
           status: 403,
           statusText: "Forbidden",
@@ -119,6 +126,7 @@ export async function middleware(request: NextRequest) {
         "Access-Control-Allow-Headers",
         "Content-Type, Authorization"
       );
+      response.headers.set("Access-Control-Allow-Credentials", "true");
 
       return response;
     }
