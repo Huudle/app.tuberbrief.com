@@ -19,11 +19,7 @@ function isApiRoute(pathname: string) {
 
 // Helper function to check if the request is for a protected API route
 function isProtectedApiRoute(pathname: string) {
-  return (
-    isApiRoute(pathname) &&
-    !pathname.startsWith("/api/log") &&
-    !pathname.startsWith("/api/auth/callback")
-  );
+  return pathname.startsWith("/api/auth/callback");
 }
 
 // Helper function to check if the request is from an allowed domain
