@@ -107,26 +107,40 @@ export async function middleware(request: NextRequest) {
 
       // Check if the origin is allowed
       if (!isAllowedOrigin(origin)) {
-        return new NextResponse(null, {
-          status: 403,
-          statusText: "Forbidden",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        return new NextResponse(
+          JSON.stringify({
+            error: "Forbidden",
+            message: "Origin not allowed",
+          }),
+          {
+            status: 403,
+            statusText: "Forbidden",
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": origin!,
+              "Access-Control-Allow-Credentials": "true",
+            },
+          }
+        );
       }
 
       // Check authentication for protected API routes
       if (isProtectedApiRoute(pathname) && !isAuthenticated) {
-        return new NextResponse(null, {
-          status: 401,
-          statusText: "Unauthorized",
-          headers: {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": origin!,
-            "Access-Control-Allow-Credentials": "true",
-          },
-        });
+        return new NextResponse(
+          JSON.stringify({
+            error: "Unauthorized",
+            message: "Authentication required",
+          }),
+          {
+            status: 401,
+            statusText: "Unauthorized",
+            headers: {
+              "Content-Type": "application/json",
+              "Access-Control-Allow-Origin": origin!,
+              "Access-Control-Allow-Credentials": "true",
+            },
+          }
+        );
       }
 
       // Allow the request and set CORS headers
