@@ -3,6 +3,29 @@ import type { NextRequest } from "next/server";
 import { supabaseAnon } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
 
+// List of allowed origins for the YouTube summarizer
+const allowedOrigins = [
+  "http://localhost:4322",
+  "https://tuberbrief.com",
+  "https://www.tuberbrief.com",
+  "https://app.tuberbrief.com",
+  "http://localhost:3000",
+];
+
+// Helper function to check if the request is for the API
+function isApiRoute(pathname: string) {
+  return pathname.startsWith("/api/");
+}
+
+// Helper function to check if the request is for a protected API route
+function isProtectedApiRoute(pathname: string) {
+  return (
+    isApiRoute(pathname) &&
+    !pathname.startsWith("/api/log") &&
+    !pathname.startsWith("/api/auth/callback")
+  );
+}
+
 export async function middleware(request: NextRequest) {
   try {
     // Get the session cookie
@@ -43,6 +66,61 @@ export async function middleware(request: NextRequest) {
         data: { path: request.nextUrl.pathname },
       });
       return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    const pathname = request.nextUrl.pathname;
+    const origin = request.headers.get("origin");
+
+    // Handle CORS for API routes
+    if (isApiRoute(pathname)) {
+      // Handle preflight requests
+      if (request.method === "OPTIONS") {
+        return new NextResponse(null, {
+          status: 204,
+          headers: {
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Origin": origin || "*",
+            "Access-Control-Max-Age": "86400", // 24 hours
+          },
+        });
+      }
+
+      // Check if the origin is allowed
+      if (origin && !allowedOrigins.includes(origin)) {
+        return new NextResponse(null, {
+          status: 403,
+          statusText: "Forbidden",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+      }
+
+      // Check authentication for protected API routes
+      if (isProtectedApiRoute(pathname) && !isAuthenticated) {
+        return new NextResponse(null, {
+          status: 401,
+          statusText: "Unauthorized",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+      }
+
+      // Allow the request and set CORS headers
+      const response = NextResponse.next();
+      response.headers.set("Access-Control-Allow-Origin", origin || "*");
+      response.headers.set(
+        "Access-Control-Allow-Methods",
+        "GET, POST, PUT, DELETE, OPTIONS"
+      );
+      response.headers.set(
+        "Access-Control-Allow-Headers",
+        "Content-Type, Authorization"
+      );
+
+      return response;
     }
 
     return NextResponse.next();
