@@ -29,6 +29,12 @@ async function fetchVideoMetadata(videoId: string) {
     url.searchParams.append("id", videoId);
     url.searchParams.append("key", process.env.YOUTUBE_API_KEY!);
 
+    // Log the URL
+    logger.info("🔍 Fetching video metadata", {
+      prefix: "YouTube API",
+      data: { url: url.toString() },
+    });
+
     const response = await fetch(url.toString());
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -39,7 +45,7 @@ async function fetchVideoMetadata(videoId: string) {
       throw new Error("No video data found");
     }
 
-    return data.items[0].snippet.title;
+    return data.items[0].snippet;
   } catch (error) {
     logger.error("❌ Error fetching video metadata", {
       prefix: "YouTube API",
@@ -58,7 +64,7 @@ export async function POST(request: Request) {
   try {
     // Parse request body
     const body = await request.json();
-    const { url, language = "en" } = body;
+    const { url } = body;
 
     if (!url) {
       return NextResponse.json(
@@ -78,19 +84,22 @@ export async function POST(request: Request) {
 
     logger.info("🔍 Processing video", {
       prefix: "Summarize",
-      data: { videoId, language },
+      data: { videoId },
     });
 
     // Check if we already have AI content stored
     const storedContent = await getStoredAIContent(videoId);
     let title = storedContent?.content?.title;
+    let defaultLanguage = storedContent?.content?.defaultLanguage;
 
     // Only fetch from YouTube API if title is empty or undefined
-    if (!title) {
+    if (!title || !defaultLanguage) {
       logger.info("📝 Fetching video title from YouTube API", {
         prefix: "Summarize",
       });
-      title = await fetchVideoMetadata(videoId);
+      const videoMetadata = await fetchVideoMetadata(videoId);
+      title = videoMetadata?.title;
+      defaultLanguage = videoMetadata?.defaultLanguage;
     }
 
     if (storedContent) {
@@ -106,7 +115,7 @@ export async function POST(request: Request) {
 
     // Get transcript
     logger.info("📝 Fetching transcript", { prefix: "Summarize" });
-    const transcript = await getPlainTextTranscript(videoId, language);
+    const transcript = await getPlainTextTranscript(videoId, defaultLanguage);
 
     if (!transcript) {
       return NextResponse.json(
@@ -127,7 +136,7 @@ export async function POST(request: Request) {
         firstSeen: now,
       },
       transcript,
-      language
+      defaultLanguage
     );
 
     if (!summary) {
@@ -143,6 +152,7 @@ export async function POST(request: Request) {
         briefSummary: summary.briefSummary,
         keyPoints: summary.keyPoints,
         title: title || "YouTube Video",
+        defaultLanguage: defaultLanguage || "en",
       },
       model: "gpt-4o-mini",
     });
