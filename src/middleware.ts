@@ -17,6 +17,11 @@ function isApiRoute(pathname: string) {
   return pathname.startsWith("/api/");
 }
 
+// Helper function to check if the request is for the log endpoint
+function isLogEndpoint(pathname: string) {
+  return pathname === "/api/log";
+}
+
 // Helper function to check if the request is from an allowed domain
 function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false;
@@ -33,7 +38,7 @@ export async function middleware(request: NextRequest) {
       // Handle preflight requests
       if (request.method === "OPTIONS") {
         // For preflight requests, we need to check the origin first
-        if (!isAllowedOrigin(origin)) {
+        if (!isLogEndpoint(pathname) && !isAllowedOrigin(origin)) {
           return new NextResponse(null, {
             status: 403,
             statusText: "Forbidden",
@@ -49,15 +54,19 @@ export async function middleware(request: NextRequest) {
           headers: {
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Origin": origin!,
+            "Access-Control-Allow-Origin": isLogEndpoint(pathname)
+              ? "*"
+              : origin!,
             "Access-Control-Max-Age": "86400", // 24 hours
-            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Credentials": isLogEndpoint(pathname)
+              ? "false"
+              : "true",
           },
         });
       }
 
       // Check if the origin is allowed
-      if (!isAllowedOrigin(origin)) {
+      if (!isLogEndpoint(pathname) && !isAllowedOrigin(origin)) {
         return new NextResponse(
           JSON.stringify({
             error: "Forbidden",
@@ -77,7 +86,10 @@ export async function middleware(request: NextRequest) {
 
       // Allow the request and set CORS headers
       const response = NextResponse.next();
-      response.headers.set("Access-Control-Allow-Origin", origin!);
+      response.headers.set(
+        "Access-Control-Allow-Origin",
+        isLogEndpoint(pathname) ? "*" : origin!
+      );
       response.headers.set(
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, DELETE, OPTIONS"
@@ -86,7 +98,10 @@ export async function middleware(request: NextRequest) {
         "Access-Control-Allow-Headers",
         "Content-Type, Authorization"
       );
-      response.headers.set("Access-Control-Allow-Credentials", "true");
+      response.headers.set(
+        "Access-Control-Allow-Credentials",
+        isLogEndpoint(pathname) ? "false" : "true"
+      );
 
       return response;
     }
