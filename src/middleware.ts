@@ -29,10 +29,16 @@ function isAllowedOrigin(origin: string | null): boolean {
 }
 
 export async function middleware(request: NextRequest) {
-  try {
-    const pathname = request.nextUrl.pathname;
-    const origin = request.headers.get("origin");
+  const pathname = request.nextUrl.pathname;
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
 
+  // Allow same-origin requests (no origin header or origin matches host)
+  if (!origin || origin.includes(host!)) {
+    return NextResponse.next();
+  }
+
+  try {
     // Handle CORS for API routes
     if (isApiRoute(pathname)) {
       // Handle preflight requests
