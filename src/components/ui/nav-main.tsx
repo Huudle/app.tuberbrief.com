@@ -16,6 +16,7 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
+  SidebarMenuBadge,
 } from "@/components/ui/sidebar";
 
 export function NavMain({
@@ -30,6 +31,7 @@ export function NavMain({
       title: string;
       url: string;
     }[];
+    badge?: string;
   }[];
 }) {
   return (
@@ -75,6 +77,11 @@ export function NavMain({
                     <span>{item.title}</span>
                   </a>
                 </SidebarMenuButton>
+              )}
+              {item.badge && (
+                <SidebarMenuBadge className="bg-orange-500 text-white">
+                  {item.badge}
+                </SidebarMenuBadge>
               )}
             </SidebarMenuItem>
           </Collapsible>
