@@ -2,7 +2,13 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
-import { Settings2, Youtube, CreditCard, Receipt } from "lucide-react";
+import {
+  Settings2,
+  Youtube,
+  CreditCard,
+  Receipt,
+  Sparkles,
+} from "lucide-react";
 
 import { NavMain } from "@/components/ui/nav-main";
 import { NavUser } from "@/components/ui/nav-user";
@@ -27,6 +33,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: Youtube,
       isActive: pathname.startsWith("/dashboard/channels"),
       items: [],
+    },
+    {
+      title: "Summarize Video",
+      url: "/dashboard/summarize",
+      icon: Sparkles,
+      isActive: pathname.startsWith("/dashboard/summarize"),
+      items: [],
+      badge: "New",
     },
     {
       title: "Plans",
